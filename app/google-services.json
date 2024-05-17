@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1088723629461",
+    "firebase_url": "https://readshare-a4dcf-default-rtdb.firebaseio.com",
+    "project_id": "readshare-a4dcf",
+    "storage_bucket": "readshare-a4dcf.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1088723629461:android:f798659221e563203d329c",
+        "android_client_info": {
+          "package_name": "com.grupo10.readshare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBmxvhQcDZHTtamqCmPToEWZW4WZWAcjHY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
