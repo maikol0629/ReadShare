@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">ReadShare</string>
+    <string-array name="generos">
+        <item>Ficción</item>
+        <item>No ficción</item>
+        <item>Poesía</item>
+        <item>Drama</item>
+        <item>Ciencia ficción</item>
+        <item>Fantasía</item>
+        <item>Educación</item>
+    </string-array>
+    <string-array name="books">
+        <item>Vender</item>
+        <item>Intercambiar</item>
+    </string-array>
+</resources>
