@@ -140,24 +140,39 @@ fun Main(
                 Text(text = "Cerrar sesión")
             }
 
-            var books by remember {
+
+            var sale by remember {
                 mutableStateOf<List<Book>>(emptyList())
             }
-            var isLoading by remember { mutableStateOf(true) }
+            var exchange by remember {
+                mutableStateOf<List<Book>>(emptyList())
+            }
+
             LaunchedEffect(Unit) {
+                launch {
+
+                    storage.getBooks().collect{
+
+                        sale = it.filter { book -> book.precio.isNotEmpty() }
+                        exchange = it.filter { book -> book.precio.isEmpty() }
+                    }
 
 
-            storage.getBooks().collect {
-                 books = it
-                 }
-            isLoading = false
+
+
+                }
+
 
             }
-            if (isLoading) {
+
+
+            if (sale.isEmpty()||exchange.isEmpty()) {
                 Text(text = "Cargando libros...")
             } else {
 
-                RowWithCards(books = books)
+                RowWithCards(books = sale, title = "Venta")
+                Spacer(modifier = Modifier.height(8.dp))
+                RowWithCards(books = exchange, title = "Intercambio")
 
             }
 
@@ -200,10 +215,10 @@ fun Card(book: Book) {
 
 
 @Composable
-fun RowWithCards(books:List<Book>) {
+fun RowWithCards(books:List<Book>, title:String) {
     Column(modifier = Modifier.background(color = colorResource(id = R.color.background1)), verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "Venta", style = MaterialTheme.typography.titleLarge)
+            Text(text = title, style = MaterialTheme.typography.titleLarge)
 
         LazyRow(modifier = Modifier.fillMaxWidth()) {
             items(items = books) { item ->
@@ -219,7 +234,7 @@ fun Prow(){
     val book=Book(title = "title", images = listOf("https://firebasestorage.googleapis.com/v0/b/readshare-a4dcf.appspot.com/o/books%2Fnayi123%40gmail.com%2Fnayi123%40gmail.comt%C3%ADtulo%20dos%2F0?alt=media&token=29adb173-66ed-48c9-9295-96f3852550da"))
     val list = listOf(book
     ,book,book)
-RowWithCards(books = list)
+RowWithCards(books = list,"Venta")
 
 
 }

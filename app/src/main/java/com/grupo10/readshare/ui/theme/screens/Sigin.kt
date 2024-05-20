@@ -1,7 +1,10 @@
 package com.grupo10.readshare.ui.theme.screens
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -23,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,7 +61,16 @@ fun Sigin(navController: NavController,
     val user = User()
     val current = LocalContext.current
     val scope = rememberCoroutineScope()
-    val auth = AuthManager(current)
+    var googleResult: Intent
+    val auth = AuthManager(current, rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            googleResult = result.data!!
+        }
+    }
+    )
+
     var cPass by remember {
         mutableStateOf("")
     }
@@ -133,7 +146,14 @@ fun Sigin(navController: NavController,
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        IconButton(onClick = { /*TODO*/ }) {
+                        LaunchedEffect(Unit) {
+                            auth.initGoogleSignIn()
+                        }
+
+
+
+
+                        IconButton(onClick = { auth.signIn() }) {
                             Image(
                                 painter = painterResource(id = R.drawable.google),
                                 contentDescription = ""

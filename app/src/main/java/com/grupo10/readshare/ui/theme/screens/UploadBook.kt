@@ -192,6 +192,7 @@ fun card(sale: Boolean,list:(List<Uri>)->Unit){
                               book.title=title
                         book.description= description
                         book.genero = genero
+                        book.precio = price
                             storage.uploadBook(book = book,selectedImages)
 
 

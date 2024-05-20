@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.compose.runtime.remember
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
@@ -19,7 +22,10 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -45,7 +51,7 @@ class StorageManager(private val context: Context) {
 
         book.user=userId.toString()
         val images: MutableList<String> = mutableListOf()
-        var cont  = 0
+        var cont = 0
         filePaths.forEach {
             val fileRef = getStorageReference().child(email+book.title).child(cont.toString())
         val uploadTask = fileRef.putFile(it).addOnSuccessListener { taskSnapshot ->
@@ -73,7 +79,7 @@ class StorageManager(private val context: Context) {
 
     }
 
-    private suspend fun addBook(book: Book, imagePaths: List<String>){
+    private suspend fun addBook(book: Book,){
 
         try {
 
@@ -105,7 +111,8 @@ class StorageManager(private val context: Context) {
     fun uploadBook(book: Book, filePaths:List<Uri>){
        GlobalScope.launch {
            val list = uploadimages(book,filePaths)
-           addBook(book,list)
+           book.images= list
+           addBook(book)
 
 
        }
@@ -114,7 +121,7 @@ class StorageManager(private val context: Context) {
 
 
      @SuppressLint("SuspiciousIndentation")
-     fun getBooks(): Flow<List<Book>> {
+      suspend fun getBooks(): Flow<List<Book>> {
          val flow = callbackFlow {
              val listener = dbRef.addValueEventListener(object : ValueEventListener {
                  override fun onDataChange(snapshot: DataSnapshot) {
@@ -128,12 +135,35 @@ class StorageManager(private val context: Context) {
                      close(error.toException())
                  }
              })
+
+
              awaitClose { dbRef.removeEventListener(listener) }
+             Log.i("TAG","flow.toString()")
          }
+
          return flow
+
+
+    }
+    suspend fun getBooksSale(): Flow<List<Book>> {
+        return getBooks().map { books ->
+            books.filter { book ->
+                book.precio.isNotEmpty()
+            }
+        }
+    }
+    suspend fun getBooksExchange(): Flow<List<Book>> {
+        return getBooks().map { books ->
+            books.filter { book ->
+                book.precio.isEmpty()
+            }
+        }
     }
 
 
 
 
+
 }
+
+
