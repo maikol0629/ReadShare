@@ -33,7 +33,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +50,7 @@ import coil.compose.rememberImagePainter
 import com.grupo10.readshare.R
 import com.grupo10.readshare.model.Book
 import com.grupo10.readshare.storage.StorageManager
+import com.grupo10.readshare.ui.theme.CampText
 
 
 @Composable
@@ -73,7 +73,7 @@ fun UploadBook(navController: NavController,
         Spacer(modifier = Modifier.height(28.dp))
         SelectedImagesPreview(selectedImageUris = selectedImageBitmaps)
 
-            card(sale){
+            UpBook(sale){
                 selectedImageBitmaps = it
             }
 
@@ -90,8 +90,6 @@ fun UploadBook(navController: NavController,
 fun GalleryButton(onImagesSelected: (imageBitmaps: List<Uri>) -> Unit) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetMultipleContents()) { uris ->
-        // Handle the result of image selection
-
         onImagesSelected(uris)
     }
 
@@ -128,9 +126,8 @@ fun SelectedImagesPreview(selectedImageUris: List<Uri>) {
 
 
 @Composable
-fun card(sale: Boolean,list:(List<Uri>)->Unit){
+fun UpBook(sale: Boolean, list:(List<Uri>)->Unit){
     val book = Book()
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val storage = StorageManager(context)
             var title by remember {

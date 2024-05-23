@@ -1,7 +1,6 @@
 package com.grupo10.readshare.navigation
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -17,19 +16,21 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.auth.FirebaseAuth
+import com.grupo10.readshare.model.MapViewModel
+import com.grupo10.readshare.storage.AuthManager
 import com.grupo10.readshare.ui.theme.screens.Charge
 import com.grupo10.readshare.ui.theme.screens.Login
 import com.grupo10.readshare.ui.theme.screens.Main
+import com.grupo10.readshare.ui.theme.screens.MapScreen
 import com.grupo10.readshare.ui.theme.screens.Sigin
 import com.grupo10.readshare.ui.theme.screens.UploadBook
 import com.grupo10.readshare.ui.theme.screens.Welcome
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun AppNavigation() {
+fun AppNavigation(mapViewModel: MapViewModel) {
     val navController = rememberNavController()
     val viewModel: MainViewModel = viewModel()
     val current = LocalContext.current
@@ -37,7 +38,10 @@ fun AppNavigation() {
     val flagBook = remember {
         mutableStateOf(false)
     }
-
+    val authManager = AuthManager(current)
+    var adreess by remember {
+        mutableStateOf("")
+    }
     LaunchedEffect(Unit) {
         val currentUser = FirebaseAuth.getInstance().currentUser
         delay(1500)
@@ -77,13 +81,17 @@ fun AppNavigation() {
             }
         }
         composable(route = AppScreens.Main.route) {
-            val userEmail = viewModel.userEmail.value
-            Main(userEmail, navController){
+            Main(authManager, navController){
                 flagBook.value=it
             }
         }
         composable(route = AppScreens.Upload.route) {
             UploadBook(navController,flagBook.value)
+        }
+        composable(route = AppScreens.Map.route) {
+            MapScreen(viewModel = mapViewModel, navController= navController){
+
+            }
         }
     }
 }

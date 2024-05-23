@@ -51,13 +51,14 @@ import com.grupo10.readshare.R
 import com.grupo10.readshare.navigation.AppScreens
 import com.google.firebase.auth.FirebaseAuth
 import com.grupo10.readshare.model.Book
+import com.grupo10.readshare.storage.AuthManager
 import com.grupo10.readshare.storage.StorageManager
 import kotlinx.coroutines.launch
 
 @SuppressLint("CoroutineCreationDuringComposition")
 @Composable
 fun Main(
-    token : String,
+    auth: AuthManager,
     navController: NavController,
     flag:(Boolean)->Unit
 ){
@@ -65,7 +66,6 @@ fun Main(
     var name by remember {
         mutableStateOf("")
     }
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val storage = StorageManager(context)
     Scaffold(
@@ -126,7 +126,7 @@ fun Main(
             horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = name)
 
-            Button(onClick = { FirebaseAuth.getInstance().signOut()
+            Button(onClick = { auth.signOut()
                     navController.navigate(route = AppScreens.Login.route){
                         popUpTo(AppScreens.Main.route) {
                             inclusive = true

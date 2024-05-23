@@ -1,7 +1,12 @@
+@file:Suppress("UNUSED_EXPRESSION")
+
 package com.grupo10.readshare.ui.theme.screens
 
-import android.content.Context
+import android.app.Activity
+import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -15,16 +20,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,33 +33,26 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.firebase.auth.GoogleAuthProvider
 import com.grupo10.readshare.R
 import com.grupo10.readshare.navigation.AppScreens
-import com.google.firebase.auth.FirebaseAuth
 import com.grupo10.readshare.storage.AuthManager
-import kotlinx.coroutines.GlobalScope
+import com.grupo10.readshare.storage.AuthRes
+import com.grupo10.readshare.ui.theme.CampText
+import com.grupo10.readshare.ui.theme.LinkText
+import com.grupo10.readshare.ui.theme.showToast
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.util.Locale
 
 @Composable
 fun Login(navController: NavController){
-
     var email by remember {
         mutableStateOf("")
     }
@@ -68,6 +62,41 @@ fun Login(navController: NavController){
     val current = LocalContext.current
     val auth = AuthManager(current)
     val scope = rememberCoroutineScope()
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val intent = result.data
+        if (result.resultCode == Activity.RESULT_OK && intent != null) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(intent)
+            when (val account = auth.handleSignInResult(task)) {
+                is AuthRes.Success -> {
+                    val credential = GoogleAuthProvider.getCredential(account.data.idToken, null)
+                    scope.launch {
+                        val fireUser = auth.signInWithGoogleCredential(credential)
+                        if (fireUser is AuthRes.Success) {
+                            Log.i("Tag2",fireUser.data.toString())
+                            Toast.makeText(current, "Bienvenidx", Toast.LENGTH_SHORT).show()
+                            navController.navigate(AppScreens.Main.route) {
+                                popUpTo(AppScreens.Login.route) {
+                                    inclusive = true
+                                }
+                            }
+                        } else if (fireUser is AuthRes.Error) {
+                            Toast.makeText(current, "Error: ${fireUser.errorMessage}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                is AuthRes.Error -> {
+                    Toast.makeText(current, "Error: ${account.errorMessage}", Toast.LENGTH_SHORT).show()
+                }
+
+                null -> TODO()
+            }
+        } else {
+            Toast.makeText(current, intent.toString(), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         topBar = {
 
@@ -136,7 +165,7 @@ fun Login(navController: NavController){
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        IconButton(onClick = { /*TODO*/ }) {
+                        IconButton(onClick = { auth.signInWithGoogle(googleSignInLauncher)}) {
                             Image(
                                 painter = painterResource(id = R.drawable.google),
                                 contentDescription = ""
@@ -170,12 +199,13 @@ fun Login(navController: NavController){
                                     auth.login(email,pass,navController)
                                 }
 
-
-
                         }else{
 
                             showToast("Campos vacíos",current)
-                        }},
+                        }
+
+
+                        },
                         modifier = Modifier
                             .padding(8.dp)
                             .width(200.dp),
@@ -188,117 +218,20 @@ fun Login(navController: NavController){
                     }
 
 
-                }
-            }
-
-        }
-    }
-
-}
-
-
-
-
-@Composable
-fun CampText(
-    type: String,
-    name: String,
-    endText: (String) -> Unit
-) {
-    val current = LocalContext.current
-
-    var text by remember {
-        mutableStateOf("")
-    }
-
-    var flag by remember {
-        mutableStateOf(KeyboardType.Text)
-    }
-
-    var pri by remember {
-        mutableStateOf(false)
-    }
-
-    var visualTransformation = VisualTransformation.None
-
-    if (type == "pass") {
-      visualTransformation = PasswordVisualTransformation()
-    } else if (type=="price"){
-        pri=true
-
-    }
-
-    when (type) {
-        "pass" -> {
-            flag = KeyboardType.Password
-        }
-        "email" -> {
-            flag = KeyboardType.Email
-        }
-        "phone" -> {
-            flag = KeyboardType.Phone
-        }
-        "price" -> {
-            flag = KeyboardType.Number
-        }
-            }
-
-    OutlinedTextField(
-        value = text,
-        onValueChange = {
-            if (it.length <= 30) {
-                if(pri){
-
-                    text = formatCurrency(text)
-                    endText(text)
 
                 }
-
-                text = it
-                endText(text)
-            } else {
-                showToast("Demasiados caracteres", current)
             }
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(10.dp)
-            .height(70.dp),
-        label = { Text(text = name,
-            fontSize = 14.sp) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = flag,
-            imeAction = ImeAction.Default
-        ),
-        readOnly = false,
-        colors = OutlinedTextFieldDefaults.colors(colorResource(id =R.color.background1), focusedBorderColor = colorResource(
-            id = R.color.black
-        ), focusedLabelColor = colorResource(id = R.color.black), unfocusedBorderColor = colorResource(
-            id = R.color.label
-        )
-        ),
-        textStyle = TextStyle(color = colorResource(id = R.color.black), fontSize = 14.sp),
-        visualTransformation = visualTransformation )
-}
-fun showToast(message: String, context: Context) {
-    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-}
-fun formatCurrency(input: String):  String{
-    val unformattedString = input.replace(",", "").trim()
-    val numberFormat = NumberFormat.getNumberInstance(Locale.US)
-    val formattedString = try {
-        val parsedNumber = unformattedString.toDouble()
-        numberFormat.format(parsedNumber)
-    } catch (e: NumberFormatException) {
-        ""
+
+        }
     }
 
-    val resultString = if (formattedString.isNotEmpty()) {
-        "$formattedString $"
-    } else {
-        ""
-    }
-
-    return resultString
 }
+
+
+
+
+
+
+
+
+

@@ -1,10 +1,5 @@
 package com.grupo10.readshare.ui.theme.screens
 
-import android.app.Activity
-import android.content.Context
-import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -26,7 +21,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,24 +28,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.grupo10.readshare.R
 import com.grupo10.readshare.model.User
-import com.grupo10.readshare.navigation.AppScreens
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import com.grupo10.readshare.storage.AuthManager
+import com.grupo10.readshare.ui.theme.CampText
+import com.grupo10.readshare.ui.theme.showToast
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
 
 @Composable
@@ -61,15 +50,7 @@ fun Sigin(navController: NavController,
     val user = User()
     val current = LocalContext.current
     val scope = rememberCoroutineScope()
-    var googleResult: Intent
-    val auth = AuthManager(current, rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            googleResult = result.data!!
-        }
-    }
-    )
+    val auth = AuthManager(current)
 
     var cPass by remember {
         mutableStateOf("")
@@ -146,14 +127,10 @@ fun Sigin(navController: NavController,
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        LaunchedEffect(Unit) {
-                            auth.initGoogleSignIn()
-                        }
 
 
 
-
-                        IconButton(onClick = { auth.signIn() }) {
+                        IconButton(onClick = { }) {
                             Image(
                                 painter = painterResource(id = R.drawable.google),
                                 contentDescription = ""
@@ -239,17 +216,3 @@ fun Sigin(navController: NavController,
         }
         }
     }
-
-
-
-/*@Composable
-private fun createGoogleSignInIntent(): Intent {
-    val current = LocalContext.current
-    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(stringResource(id = R.string.))
-        .requestEmail()
-        .build()
-    val googleSignInClient = GoogleSignIn.getClient(current, gso)
-    return googleSignInClient.signInIntent
-}
-*/
