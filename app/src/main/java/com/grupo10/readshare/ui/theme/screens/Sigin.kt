@@ -40,17 +40,17 @@ import com.grupo10.readshare.model.User
 import com.grupo10.readshare.storage.AuthManager
 import com.grupo10.readshare.ui.theme.CampText
 import com.grupo10.readshare.ui.theme.showToast
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
 
 @Composable
 fun Sigin(navController: NavController,
+          auth: AuthManager,
           endEmail: (String) -> Unit){
 
     val user = User()
     val current = LocalContext.current
     val scope = rememberCoroutineScope()
-    val auth = AuthManager(current)
+
 
     var cPass by remember {
         mutableStateOf("")
@@ -149,8 +149,11 @@ fun Sigin(navController: NavController,
                         }
 
                     }
-                    CampText(type = "", name = "Nombre") {
+                    CampText(type = "", name = "Nombres") {
                         user.name = it
+                    }
+                    CampText(type = "", name = "Apellidos") {
+                        user.lastName = it
                     }
                     CampText(type = "email", name = "Correo") {
                         user.email = it
@@ -160,12 +163,6 @@ fun Sigin(navController: NavController,
                     }
                     CampText(type = "pass", name = "Confirmar Contraseña") {
                         cPass = it
-                    }
-                    CampText(type = "", name = "Direccion") {
-                        user.address = it
-                    }
-                    CampText(type = "phone", name = "Telefono") {
-                        user.phone = it
                     }
 
                     Row(modifier = Modifier.padding(10.dp)) {

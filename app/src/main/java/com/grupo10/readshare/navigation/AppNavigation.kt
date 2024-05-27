@@ -6,19 +6,19 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
+import com.grupo10.readshare.model.Book
 import com.grupo10.readshare.model.MapViewModel
+import com.grupo10.readshare.model.User
 import com.grupo10.readshare.storage.AuthManager
+import com.grupo10.readshare.storage.StorageManager
 import com.grupo10.readshare.ui.theme.screens.Charge
 import com.grupo10.readshare.ui.theme.screens.Login
 import com.grupo10.readshare.ui.theme.screens.Main
@@ -30,18 +30,14 @@ import kotlinx.coroutines.delay
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun AppNavigation(mapViewModel: MapViewModel) {
+fun AppNavigation(mapViewModel: MapViewModel, authManager: AuthManager, storageManager: StorageManager) {
     val navController = rememberNavController()
     val viewModel: MainViewModel = viewModel()
-    val current = LocalContext.current
-    val isConnected = remember { mutableStateOf(false) }
+    var user = User()
     val flagBook = remember {
         mutableStateOf(false)
     }
-    val authManager = AuthManager(current)
-    var adreess by remember {
-        mutableStateOf("")
-    }
+    var book: Book  = Book()
     LaunchedEffect(Unit) {
         val currentUser = FirebaseAuth.getInstance().currentUser
         delay(1500)
@@ -73,26 +69,29 @@ fun AppNavigation(mapViewModel: MapViewModel) {
             Welcome(navController)
         }
         composable(route = AppScreens.Login.route) {
-            Login(navController)
+            Login(navController,authManager)
         }
         composable(route = AppScreens.Sigin.route) {
-            Sigin(navController) { email ->
+            Sigin(navController, authManager) { email ->
                 viewModel.setUserEmail(email)
             }
         }
         composable(route = AppScreens.Main.route) {
-            Main(authManager, navController){
+            Main( authManager, navController, storageManager){
                 flagBook.value=it
             }
         }
         composable(route = AppScreens.Upload.route) {
-            UploadBook(navController,flagBook.value)
-        }
-        composable(route = AppScreens.Map.route) {
-            MapScreen(viewModel = mapViewModel, navController= navController){
-
+            UploadBook(navController,flagBook.value){
+                book = it
             }
         }
+        composable(route = AppScreens.Map.route) {
+            MapScreen(viewModel = mapViewModel, navController,book,storageManager)
+
+
+        }
+
     }
 }
 

@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">ReadShare</string>
     <string name="default_web_client_id">1088723629461-5c7f1nja12sooceqja2bi4e566kite3n.apps.googleusercontent.com</string>
+    <string name="facebook_app_id">808719507861854</string>
+    <string name="fb_login_protocol_scheme">fb808719507861854</string>
+    <string name="facebook_client_token">e079bd3fb7c70191a67d0cd9014cad4a</string>
     <string-array name="generos">
         <item>Ficción</item>
         <item>No ficción</item>

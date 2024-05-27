@@ -1,5 +1,3 @@
-@file:Suppress("UNUSED_EXPRESSION")
-
 package com.grupo10.readshare.ui.theme.screens
 
 import android.app.Activity
@@ -52,7 +50,7 @@ import com.grupo10.readshare.ui.theme.showToast
 import kotlinx.coroutines.launch
 
 @Composable
-fun Login(navController: NavController){
+fun Login(navController: NavController, auth: AuthManager){
     var email by remember {
         mutableStateOf("")
     }
@@ -60,7 +58,6 @@ fun Login(navController: NavController){
         mutableStateOf("")
     }
     val current = LocalContext.current
-    val auth = AuthManager(current)
     val scope = rememberCoroutineScope()
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -97,9 +94,30 @@ fun Login(navController: NavController){
         }
     }
 
+
+    if(auth.checkEmailVerification()){
+        navController.navigate(AppScreens.Main.route)
+    }
+
+
+
     Scaffold(
         topBar = {
 
+
+
+        }
+
+    ) { innerPadding ->
+
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .background(color = colorResource(id = R.color.background2)),
+            verticalArrangement = Arrangement.SpaceAround
+
+        ) {
             Row (modifier = Modifier
                 .fillMaxWidth()
                 .height(130.dp)
@@ -114,21 +132,8 @@ fun Login(navController: NavController){
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(130.dp)
-                        .padding(12.dp)
                 )
             }
-
-        }
-
-    ) { innerPadding ->
-
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .background(color = colorResource(id = R.color.background2)),
-            Arrangement.Center
-        ) {
 
 
             Box(
@@ -138,8 +143,8 @@ fun Login(navController: NavController){
                         colorResource(id = R.color.login),
                         shape = RoundedCornerShape(50.dp)
                     )
-                    .padding(30.dp),
-                contentAlignment = Alignment.TopCenter
+                    ,
+                contentAlignment = Alignment.Center
             ) {
                 Column(
                     modifier = Modifier
@@ -154,7 +159,7 @@ fun Login(navController: NavController){
 
                     ) {
 
-                    Text(text = "Ingresar con:", fontSize = 18.sp)
+                    Text(text = "Ingresar con:", fontSize = 18.sp, color = colorResource(id = R.color.black))
 
 
                     Row(
@@ -174,9 +179,21 @@ fun Login(navController: NavController){
                         Text(
                             text = "ó",
                             modifier = Modifier.padding(horizontal = 8.dp),
-                            fontSize = 16.sp
+                            fontSize = 16.sp,
+                            color = colorResource(id = R.color.black)
                         )
-                        IconButton(onClick = { /*TODO*/ }) {
+                        IconButton(onClick = {
+
+                            scope.launch {
+                                auth.signInWithFacebook()
+
+                            }
+
+
+
+
+
+                        }) {
                             Image(
                                 painter = painterResource(id = R.drawable.facebook),
                                 contentDescription = ""

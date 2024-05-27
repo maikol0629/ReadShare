@@ -2,20 +2,24 @@ package com.grupo10.readshare.model
 
 class User (){
     var name:String = ""
+    var lastName:String=""
     var email:String = ""
     var pass:String = ""
-    var address:String = ""
-    var phone:String = ""
+    var image:String = ""
 
-    constructor(name: String, email: String, pass: String, address: String, phone: String) : this() {
+
+
+    constructor(name: String, lastName:String, email: String, pass: String, books: List<Book>) : this() {
         this.name = name
+        this.lastName= lastName
         this.email = email
         this.pass = pass
-        this.address = address
-        this.phone = phone
     }
 
     fun isNotBlank(): Boolean {
-        return name.isNotBlank() && email.isNotBlank() && pass.isNotBlank() && address.isNotBlank() && phone.isNotBlank()
+        return name.isNotBlank() && email.isNotBlank() && pass.isNotBlank() && lastName.isNotBlank()
+    }
+    fun isNotBlank2(): Boolean {
+        return name.isNotBlank() && lastName.isNotBlank()
     }
 }

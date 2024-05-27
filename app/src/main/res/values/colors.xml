@@ -2,7 +2,7 @@
 <resources>
     <color name="background1">#EE4056</color>
     <color name="background2">#3E5173</color>
-    <color name="login">#EE5F3F</color>
+    <color name="login">#C5CAE9</color>
     <color name="teal_200">#A9FBF3</color>
     <color name="label">#797D7D</color>
     <color name="black">#FF000000</color>

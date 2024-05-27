@@ -26,13 +26,14 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,39 +44,178 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.rememberImagePainter
 import com.grupo10.readshare.R
 import com.grupo10.readshare.model.Book
+import com.grupo10.readshare.navigation.AppScreens
 import com.grupo10.readshare.storage.StorageManager
 import com.grupo10.readshare.ui.theme.CampText
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @Composable
-fun UploadBook(navController: NavController,
-               sale:Boolean){
+fun UploadBook(
+    navController: NavController,
+    sale:Boolean,
+    onBook: (Book) -> Unit
+){
 
     var selectedImageBitmaps by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    val book = Book()
+    val context = LocalContext.current
+    val storage = StorageManager(context)
+    var title by remember {
+        mutableStateOf("")
+    }
+    var genero by remember {
+        mutableStateOf("Género")
+    }
+    var description by remember {
+        mutableStateOf("")
+    }
+    var address by remember {
+        mutableStateOf("")
+    }
+    var add by remember {
+        mutableStateOf(false)
+    }
+    val scope = rememberCoroutineScope()
+
+    var price by remember {
+        mutableStateOf("")
+    }
+    var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
     Column (modifier = Modifier
         .fillMaxSize()
         .background(
-            colorResource(id = R.color.background1)
+            colorResource(id = R.color.background2)
 
         )
         .padding(20.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,) {
+
         Text(text = "Compartir libro", fontSize = 24.sp, fontFamily = FontFamily.SansSerif, color = colorResource(
             id = R.color.black
         ))
         Spacer(modifier = Modifier.height(28.dp))
         SelectedImagesPreview(selectedImageUris = selectedImageBitmaps)
 
-            UpBook(sale){
-                selectedImageBitmaps = it
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    colorResource(id = R.color.login),
+                    shape = RoundedCornerShape(50.dp)
+                )
+                .padding(10.dp),
+            contentAlignment = Alignment.TopCenter
+        ){
+            Column (verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .padding(12.dp)
+                    .background(color = colorResource(id = R.color.login))){
+
+
+                CampText(type = "txt", name = "Título") {
+                    title = it
+                }
+                GeneroLiteraturaDropdown(
+                    generos = stringArrayResource(id = R.array.generos),
+                    onGeneroSelected = { genero = it }
+                )
+                CampText(type = "txt", name = "Descripcion") {
+                    description = it
+                }
+                if (sale) {
+                    CampText(type = "price", name = "Precio") {
+                        price = it
+                    }
+                }
+
+               /* Row(horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    TextField(
+                        value = address, onValueChange = {}, readOnly = true,
+                        modifier = Modifier
+                            .fillMaxWidth(0.8f)
+                            .height(70.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            colorResource(id = R.color.background1),
+                            focusedBorderColor = colorResource(
+                                id = R.color.black
+                            ),
+                            focusedLabelColor = colorResource(id = R.color.black),
+                            unfocusedBorderColor = colorResource(
+                                id = R.color.label
+                            ),
+
+                            ),
+                        textStyle = TextStyle(
+                            color = colorResource(id = R.color.black),
+                            fontSize = 18.sp,
+                            textAlign = TextAlign.Justify
+                        ),
+                        placeholder =  {
+                            Text(
+                                text = "Punto de encuentro",
+                                fontSize = 16.sp,
+                                color = colorResource(id = R.color.black)
+                            )
+                        }
+                    )
+                    IconButton(onClick = { add=true }) {
+                        Icon(painter = painterResource(id = R.drawable.map), contentDescription = "Punto de encuentro")
+                    }
+                } */
+
+
+
+
+                GalleryButton { uris ->
+                    selectedImages = uris
+                    selectedImageBitmaps= uris
+                }
+
+                if (selectedImages.isNotEmpty() and title.isNotEmpty() and description.isNotEmpty() and genero.isNotEmpty()) {
+
+                    Button(
+                        onClick = {
+                            book.title = title
+                            book.description = description
+                            book.genero = genero
+                            book.precio = price
+                            scope.launch { book.images=storage.uploadImages(book,selectedImages)
+                                onBook(book)
+                                delay(1000)
+                                navController.navigate(AppScreens.Map.route)
+                            }
+
+
+                        },
+                        modifier = Modifier
+                            .padding(10.dp)
+                            .width(200.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorResource(
+                                id = R.color.background1
+                            )
+                        )
+                    ) {
+                        Text(text = "Continuar", fontSize = 18.sp)
+                    }
+                }
+
             }
+        }
+    }
 
 
 
@@ -83,12 +223,12 @@ fun UploadBook(navController: NavController,
 
 
     }
-}
+
 
 
 @Composable
 fun GalleryButton(onImagesSelected: (imageBitmaps: List<Uri>) -> Unit) {
-    val context = LocalContext.current
+
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetMultipleContents()) { uris ->
         onImagesSelected(uris)
     }
@@ -125,93 +265,7 @@ fun SelectedImagesPreview(selectedImageUris: List<Uri>) {
 
 
 
-@Composable
-fun UpBook(sale: Boolean, list:(List<Uri>)->Unit){
-    val book = Book()
-    val context = LocalContext.current
-    val storage = StorageManager(context)
-            var title by remember {
-                mutableStateOf("")
-            }
-            var genero by remember {
-                mutableStateOf("Género")
-            }
-            var description by remember {
-                mutableStateOf("")
-            }
-    var price by remember {
-        mutableStateOf("")
-    }
-        var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                colorResource(id = R.color.login),
-                shape = RoundedCornerShape(50.dp)
-            )
-            .padding(10.dp),
-        contentAlignment = Alignment.TopCenter
-    ){
-        Column (verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .padding(12.dp)
-                .background(color = colorResource(id = R.color.login))){
-
-            CampText(type = "txt", name = "Título") {
-                title = it
-            }
-            GeneroLiteraturaDropdown(
-                generos = stringArrayResource(id = R.array.generos),
-                onGeneroSelected = { genero = it }
-            )
-            CampText(type = "txt", name = "Descripcion") {
-                description = it
-            }
-            if (sale){
-                CampText(type = "price", name = "Precio") {
-                    price=it
-                }
-            }
-
-
-            GalleryButton { uris ->
-                selectedImages = uris
-            list(uris)
-            }
-
-            if (selectedImages.isNotEmpty() and title.isNotEmpty() and description.isNotEmpty() and genero.isNotEmpty()) {
-
-                Button(
-                    onClick = {
-                              book.title=title
-                        book.description= description
-                        book.genero = genero
-                        book.precio = price
-                            storage.uploadBook(book = book,selectedImages)
-
-
-
-                    },
-                    modifier = Modifier
-                        .padding(10.dp)
-                        .width(200.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorResource(
-                            id = R.color.background1
-                        )
-                    )
-                ) {
-                    Text(text = "Enviar", fontSize = 18.sp)
-                }
-            }
-
-
-        }
-        }
-}
 
 
 @Composable
@@ -231,7 +285,7 @@ fun GeneroLiteraturaDropdown(
 
 
 
-            OutlinedTextField(
+            TextField(
                 value = itemSelected, onValueChange = {}, readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
@@ -250,10 +304,11 @@ fun GeneroLiteraturaDropdown(
                 label = {
                     Text(
                         text = "Género",
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
+                        color = colorResource(id = R.color.black)
                     )
                 },
-                textStyle = TextStyle(color = colorResource(id = R.color.black), fontSize = 14.sp)
+                textStyle = TextStyle(color = colorResource(id = R.color.black), fontSize = 18.sp, textAlign = TextAlign.Justify),
             )
             IconButton(onClick = { expanded = true }) {
                 Icon(

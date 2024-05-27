@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +26,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,7 +99,7 @@ fun CampText(
         }
     }
 
-    OutlinedTextField(
+    TextField(
         value = text,
         onValueChange = {
             if (it.length <= 30) {
@@ -120,12 +121,14 @@ fun CampText(
             .padding(10.dp)
             .height(70.dp),
         label = { Text(text = name,
-            fontSize = 14.sp) },
+            fontSize = 16.sp,
+            color = colorResource(id = R.color.black)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(
             keyboardType = flag,
             imeAction = ImeAction.Default
         ),
+        //placeholder = { Text(text = name, color = colorResource(id = R.color.black))},
         readOnly = false,
         colors = OutlinedTextFieldDefaults.colors(
             colorResource(id = R.color.background1), focusedBorderColor = colorResource(
@@ -134,7 +137,7 @@ fun CampText(
             id = R.color.label
         )
         ),
-        textStyle = TextStyle(color = colorResource(id = R.color.black), fontSize = 14.sp),
+        textStyle = TextStyle(color = colorResource(id = R.color.black), fontSize = 18.sp, textAlign = TextAlign.Justify),
         visualTransformation = visualTransformation )
 }
 

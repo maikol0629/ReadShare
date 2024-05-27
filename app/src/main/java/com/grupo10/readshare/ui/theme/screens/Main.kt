@@ -30,27 +30,26 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.rememberImagePainter
 import com.grupo10.readshare.R
-import com.grupo10.readshare.navigation.AppScreens
-import com.google.firebase.auth.FirebaseAuth
 import com.grupo10.readshare.model.Book
+import com.grupo10.readshare.model.User
+import com.grupo10.readshare.navigation.AppScreens
 import com.grupo10.readshare.storage.AuthManager
 import com.grupo10.readshare.storage.StorageManager
 import kotlinx.coroutines.launch
@@ -60,132 +59,177 @@ import kotlinx.coroutines.launch
 fun Main(
     auth: AuthManager,
     navController: NavController,
-    flag:(Boolean)->Unit
-){
+    storage: StorageManager,
+    flag: (Boolean) -> Unit
+) {
+    var currentScreen by remember { mutableStateOf(BottomBarScreen.Home) }
     var bookMenuFlag by remember { mutableStateOf(false) }
-    var name by remember {
-        mutableStateOf("")
+    val name by remember { mutableStateOf("") }
+    var user by remember { mutableStateOf(User()) }
+    LaunchedEffect(Unit) {
+        launch {
+            auth.getUserData()?.let {
+                user= it
+            }
+        }
     }
-    val context = LocalContext.current
-    val storage = StorageManager(context)
     Scaffold(
         bottomBar = {
-            
-            Row (horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(25.dp)) {
-                IconButton(onClick = { /*TODO*/ }) {
-                    Icon(painter = painterResource(id = R.drawable.main),
-                        contentDescription = "", tint = colorResource(id = R.color.black))
-                }
-                IconButton(onClick = { /*TODO*/ }) {
-                    Icon(painter = painterResource(id = R.drawable.search),
-                        contentDescription = "")
-                }
-                IconButton(onClick = { /*TODO*/ }) {
-                    Icon(painter = painterResource(id = R.drawable.menu),
-                        contentDescription = "", tint = colorResource(id = R.color.black))
-                }
-                IconButton(onClick = { /*TODO*/ }) {
-                    Icon(painter = painterResource(id = R.drawable.acount),
-                        contentDescription = "", tint = colorResource(id = R.color.black))
-                }
-            }
-            
+            BottomBar(
+                currentScreen = currentScreen,
+                onScreenSelected = { currentScreen = it }
+            )
         },
-        containerColor = colorResource(id = R.color.background1),
+        containerColor = colorResource(id = R.color.login),
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
-            FloatingActionButton(onClick = { bookMenuFlag = true},
-                modifier = Modifier
-                    .size(60.dp),
-                containerColor = colorResource(id = R.color.background1)
-                                   ) {
-                Box {
-                    if (bookMenuFlag) {
-                        addBook(bol = bookMenuFlag, navController = navController, bookFlag = {flag(it)}, rt = {bookMenuFlag=it})
-
+            if (currentScreen == BottomBarScreen.Home) {
+                FloatingActionButton(
+                    onClick = { bookMenuFlag = true },
+                    modifier = Modifier.size(60.dp),
+                    containerColor = colorResource(id = R.color.background1)
+                ) {
+                    Box {
+                        if (bookMenuFlag) {
+                            addBook(
+                                bol = bookMenuFlag,
+                                bookFlag = { flag(it) },
+                                rt = { bookMenuFlag = it }, navController = navController
+                            )
+                        }
+                        Icon(
+                            painter = painterResource(id = R.drawable.add_book),
+                            contentDescription = "",
+                            modifier = Modifier
+                                .padding(5.dp)
+                                .fillMaxSize(),
+                            tint = colorResource(id = R.color.white)
+                        )
                     }
-                    Icon(
-                        painter = painterResource(id = R.drawable.add_book),
-                        contentDescription = "",
-                        modifier = Modifier
-                            .padding(5.dp)
-                            .fillMaxSize(),
-                        tint = colorResource(id = R.color.white)
-                    )
                 }
             }
         }
-
-        ) {innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding),
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier.padding(innerPadding),
             verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally) {
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text(text = name)
-
-            Button(onClick = { auth.signOut()
-                    navController.navigate(route = AppScreens.Login.route){
-                        popUpTo(AppScreens.Main.route) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
-
-
+            Button(onClick = {
+                auth.signOut()
+                navController.navigate(AppScreens.Login.route)
             }) {
-
                 Text(text = "Cerrar sesión")
             }
 
-
-            var sale by remember {
-                mutableStateOf<List<Book>>(emptyList())
+            when (currentScreen) {
+                BottomBarScreen.Home -> HomeScreen(storage = storage)
+                BottomBarScreen.Search -> SearchScreen()
+                BottomBarScreen.Menu -> MenuScreen()
+                BottomBarScreen.Account ->  AccountScreen(user, authManager = auth, navController = navController, storage = storage)
             }
-            var exchange by remember {
-                mutableStateOf<List<Book>>(emptyList())
-            }
-
-            LaunchedEffect(Unit) {
-                launch {
-
-                    storage.getBooks().collect{
-
-                        sale = it.filter { book -> book.precio.isNotEmpty() }
-                        exchange = it.filter { book -> book.precio.isEmpty() }
-                    }
-
-
-
-
-                }
-
-
-            }
-
-
-            if (sale.isEmpty()||exchange.isEmpty()) {
-                Text(text = "Cargando libros...")
-            } else {
-
-                RowWithCards(books = sale, title = "Venta")
-                Spacer(modifier = Modifier.height(8.dp))
-                RowWithCards(books = exchange, title = "Intercambio")
-
-            }
-
-
-
-
         }
-        
     }
-    
 }
 
+@Composable
+fun BottomBar(currentScreen: BottomBarScreen, onScreenSelected: (BottomBarScreen) -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        BottomBarIcon(
+            screen = BottomBarScreen.Home,
+            currentScreen = currentScreen,
+            onScreenSelected = onScreenSelected
+        )
+        BottomBarIcon(
+            screen = BottomBarScreen.Search,
+            currentScreen = currentScreen,
+            onScreenSelected = onScreenSelected
+        )
+        BottomBarIcon(
+            screen = BottomBarScreen.Menu,
+            currentScreen = currentScreen,
+            onScreenSelected = onScreenSelected
+        )
+        BottomBarIcon(
+            screen = BottomBarScreen.Account,
+            currentScreen = currentScreen,
+            onScreenSelected = onScreenSelected
+        )
+    }
+}
 
+@Composable
+fun BottomBarIcon(
+    screen: BottomBarScreen,
+    currentScreen: BottomBarScreen,
+    onScreenSelected: (BottomBarScreen) -> Unit
+) {
+    val icon = when (screen) {
+        BottomBarScreen.Home -> R.drawable.main
+        BottomBarScreen.Search -> R.drawable.search
+        BottomBarScreen.Menu -> R.drawable.menu
+        BottomBarScreen.Account -> R.drawable.acount
+    }
+    val tint = if (screen == currentScreen) Color.Black else Color.Gray
+
+    IconButton(onClick = { onScreenSelected(screen) }) {
+        Icon(
+            painter = painterResource(id = icon),
+            contentDescription = "",
+            tint = tint
+        )
+    }
+}
+
+enum class BottomBarScreen {
+    Home, Search, Menu, Account
+}
+
+@Composable
+fun HomeScreen(storage: StorageManager) {
+    var sale by remember { mutableStateOf<List<Book>>(emptyList()) }
+    var exchange by remember { mutableStateOf<List<Book>>(emptyList()) }
+    var all by remember { mutableStateOf<List<Book>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        launch {
+            storage.getBooks().collect {
+                sale = it.filter { book -> book.precio.isNotEmpty() }
+                exchange = it.filter { book -> book.precio.isEmpty() }
+                all = it
+                Log.i("books", all.toString())
+            }
+        }
+    }
+
+    if (all.isEmpty()) {
+        Text(text = "Cargando libros...")
+    } else {
+        RowWithCards(books = sale, title = "Venta")
+        Spacer(modifier = Modifier.height(8.dp))
+        RowWithCards(books = exchange, title = "Intercambio")
+    }
+}
+
+@Composable
+fun SearchScreen() {
+    Text("Search Screen", fontWeight = FontWeight.Bold, color = Color.Black)
+}
+
+@Composable
+fun MenuScreen() {
+    Text("Menu Screen", fontWeight = FontWeight.Bold, color = Color.Black)
+}
+
+@Composable
+fun AccountScreen(user: User, authManager: AuthManager, navController: NavController, storage: StorageManager) {
+    Account(user, authManager, navController =navController , storage = storage)
+}
 
 
 @Composable
