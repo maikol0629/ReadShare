@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun Sigin(navController: NavController,
           auth: AuthManager,
-          endEmail: (String) -> Unit){
+          endId: (String) -> Unit){
 
     val user = User()
     val current = LocalContext.current
@@ -175,9 +175,10 @@ fun Sigin(navController: NavController,
                                     if (user.isNotBlank()){
                                         if((user.pass.length>6)){
                                             if(user.pass == cPass) {
-                                                endEmail(user.email)
+
                                                 scope.launch {
-                                                    auth.siginWithEmail(user,navController,current)
+                                                    auth.sigInWithEmailAndPass(user,navController,current)
+                                                    auth.getUserUid()?.let { endId(it) }
                                                 }
 
                                             }else{

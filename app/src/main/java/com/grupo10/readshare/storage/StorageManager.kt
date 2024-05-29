@@ -10,19 +10,24 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageException
 import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.storage
 import com.grupo10.readshare.model.Book
+import com.grupo10.readshare.model.User
 import com.grupo10.readshare.ui.theme.showToast
-import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -31,18 +36,20 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.URL
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class StorageManager(private val context: Context) {
     private val storage = Firebase.storage
     private val storageRef = storage.reference
+    private val dbUser = FirebaseFirestore.getInstance()
     private val db = FirebaseDatabase.getInstance()
     private val dbRef = FirebaseDatabase.getInstance().reference.child("books")
     private val dbBooks = db.getReference("books")
     private val userId = FirebaseAuth.getInstance().currentUser
     private val  email = userId?.email
 
-    fun getEmail():String{
+    private fun getEmail():String{
         return email.toString()
     }
 
@@ -50,10 +57,8 @@ class StorageManager(private val context: Context) {
         return storageRef.child(path).child(email?:"")
     }
 
-     suspend internal fun uploadImages(book: Book, filePaths:List<Uri>
+    suspend fun uploadImages(book: Book, filePaths:List<Uri>
                              ): List<String> {
-
-        book.user= userId?.uid.toString()
         val images: MutableList<String> = mutableListOf()
         var cont = 0
         filePaths.forEach {
@@ -65,16 +70,12 @@ class StorageManager(private val context: Context) {
                 // Aquí puedes obtener la URI de descarga de la imagen subida
                 val downloadUrl = uri.toString()
                 images.add(downloadUrl)
-
             }.addOnFailureListener { exception ->
-
                 showToast("Error al obtener utl Imagenes", context = this.context)
             }
         }
             .addOnFailureListener { exception ->
-
                 showToast("Error al subir Imagenes", context = this.context)
-
             }
         uploadTask.await()
             cont+=1
@@ -84,7 +85,6 @@ class StorageManager(private val context: Context) {
     }
     suspend fun uploadImageFromUrl(fileUrl: String, context: Context): String {
         var image = ""
-
         val fileRef = email?.let { getStorageReference("users").child(it) }
 Log.i("Entrada", fileUrl)
         try {
@@ -144,96 +144,130 @@ Log.i("Entrada", fileUrl)
         }
     }
 
-    suspend fun uploadImageFromUri(filePath: Uri): String{
-        var image:String = ""
-        val fileRef = email?.let { getStorageReference("users").child(it) }
-        val uploadTask = fileRef?.putFile(filePath)?.addOnSuccessListener { taskSnapshot ->
-            // Éxito al subir la imagen
-            // Puedes obtener la URL de descarga de la imagen subida si la necesitas
+
+    private suspend fun uploadImageFromUri(filePath: Uri): String = suspendCancellableCoroutine { continuation ->
+        val fileRef = userId.let { getStorageReference("users").child(it.toString()) }
+        val uploadTask = fileRef.putFile(filePath)
+
+        uploadTask.addOnSuccessListener { taskSnapshot ->
             fileRef.downloadUrl.addOnSuccessListener { uri ->
-                // Aquí puedes obtener la URI de descarga de la imagen subida
                 val downloadUrl = uri.toString()
-                image = downloadUrl
+                continuation.resume(downloadUrl)
+                showToast("Imagen subida actualizada correctamente", context = this.context)
             }.addOnFailureListener { exception ->
+                continuation.resumeWithException(exception)
 
-                showToast("Error al obtener utl Imagenes", context = this.context)
             }
+        }.addOnFailureListener { exception ->
+            continuation.resumeWithException(exception)
+
         }
-            ?.addOnFailureListener { exception ->
 
-                showToast("Error al subir Imagenes", context = this.context)
-
+        continuation.invokeOnCancellation {
+            uploadTask.cancel()
+        }
+    }
+    private fun deleteImage(imageUrl: String): Deferred<Unit> {
+        val deferred = CompletableDeferred<Unit>()
+        try {
+            if (imageUrl.isEmpty()) {
+                deferred.complete(Unit)
+                return deferred
             }
-        uploadTask?.await()
-        return image
+            val storageRef: StorageReference = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl)
+            if (storageRef.path.isNotEmpty()) {
+                storageRef.getMetadata().addOnSuccessListener {
+                    // La imagen existe, procede a eliminarla
+                    val deleteTask = storageRef.delete()
+                    deleteTask.addOnSuccessListener {
+                        deferred.complete(Unit)
+                    }.addOnFailureListener { exception ->
+                        deferred.completeExceptionally(exception)
+                    }
+                }.addOnFailureListener { exception ->
+                    if (exception is StorageException && exception.errorCode == StorageException.ERROR_OBJECT_NOT_FOUND) {
+                        // La imagen no existe
+                        deferred.complete(Unit)
+                    } else {
+                        // Otro error ocurrió al intentar obtener los metadatos
+                        deferred.completeExceptionally(exception)
+                    }
+                }
+            } else {
+                deferred.complete(Unit)
+            }
+        } catch (e: Exception) {
+            Log.e("Error borrando imagen", e.toString())
+            deferred.completeExceptionally(e)
+        }
+        return deferred
     }
 
 
-    suspend fun deleteImage(imageUrl: String): Boolean {
-        return try {
-            val storageRef: StorageReference = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl)
-            val deleteTask = storageRef.delete()
+    @SuppressLint("SuspiciousIndentation")
+    suspend fun updateUserDetails(user: User) {
+        val userRef = dbUser.collection("users").document(user.id)
+            userRef.set(user).await()
+    }
+    suspend fun updateProfile(uri: Uri, user: User) {
 
-            deleteTask.addOnSuccessListener {
-                // La imagen se eliminó con éxito
-                showToast("Imagen eliminada con éxito", context = this.context)
-            }.addOnFailureListener { exception ->
-                // Error al eliminar la imagen
-                showToast("Error al eliminar la imagen: ${exception.message}", context = this.context)
-            }
+        CoroutineScope(Dispatchers.IO).launch {
+            deleteImage(user.image).await()
+            val newImageUri = uploadImageFromUri(uri)
+            user.image = newImageUri
+            updateUserDetails(user)
+        }
 
-            deleteTask.await()
-            true
+    }
+
+    suspend fun updateBook(book: Book) {
+        dbBooks.child(book.id).setValue(book).await()
+    }
+
+    suspend fun deleteBook(book: Book) {
+        try {
+            // Borrar las imágenes asociadas al libro
+            deleteBookImages(book.images)
+            // Borrar el libro de la base de datos
+            dbBooks.child(book.id).removeValue().await()
+            Log.d("Firebase", "Libro eliminado con éxito")
         } catch (e: Exception) {
-            // Manejar cualquier excepción que ocurra
-            showToast("Error al eliminar la imagen: ${e.message}", context = this.context)
-            false
+            Log.e("Error al eliminar libro", e.toString())
+        }
+    }
+
+    private suspend fun deleteBookImages(imageUrls: List<String>) {
+        imageUrls.forEach { imageUrl ->
+            try {
+                deleteImage(imageUrl).await()
+                Log.d("Firebase", "Imagen eliminada con éxito: $imageUrl")
+            } catch (e: Exception) {
+                Log.e("Error al eliminar imagen", e.toString())
+            }
         }
     }
 
 
     suspend fun addBook(book: Book,){
-
         try {
-
             val key = dbBooks.push().key
             if (key!=null){
-
-                book.email = getEmail()
+                book.user= userId?.uid.toString()
+                book.id = key
+                book.uris = emptyList()
                 dbBooks.child(key).setValue(book)
                     .addOnCompleteListener {
                         if (it.isSuccessful){
                             Log.d("Firebase", "Datos guardados con éxito")
                         }
-                    }
-                    .await()
-
-
-
+                    }.await()
             }
-
-
-
         }catch (e:Exception){
-
             Log.e("No agregó", e.toString())
         }
 
 
     }
-
-    @OptIn(DelicateCoroutinesApi::class)
-    fun uploadBook(book: Book, filePaths:List<Uri>){
-       GlobalScope.launch {
-           val list = uploadImages(book,filePaths)
-           book.images= list
-           addBook(book)
-
-
-       }
-
-    }
-
 
      @SuppressLint("SuspiciousIndentation")
       suspend fun getBooks(): Flow<List<Book>> {
@@ -251,8 +285,6 @@ Log.i("Entrada", fileUrl)
                      close(error.toException())
                  }
              })
-
-
              awaitClose { dbRef.removeEventListener(listener) }
              Log.i("TAG","flow.toString()")
          }
@@ -265,18 +297,17 @@ Log.i("Entrada", fileUrl)
     suspend fun getBooksSale(): Flow<List<Book>> {
         return getBooks().map { books ->
             books.filter { book ->
-                book.precio.isNotEmpty()
+                book.price.isNotEmpty()
             }
         }
     }
     suspend fun getBooksExchange(): Flow<List<Book>> {
         return getBooks().map { books ->
             books.filter { book ->
-                book.precio.isEmpty()
+                book.price.isEmpty()
             }
         }
     }
-
 
     suspend fun getBooksUser(): Flow<List<Book>> {
         val flow = callbackFlow {
@@ -293,13 +324,10 @@ Log.i("Entrada", fileUrl)
                     close(error.toException())
                 }
             })
-
-
             awaitClose { dbRef.removeEventListener(listener) }
             Log.i("TAG","flow.toString()")
         }
         Log.i("Flow", flow.toString())
-
         return flow
 
 

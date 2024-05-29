@@ -6,6 +6,7 @@ class User (){
     var email:String = ""
     var pass:String = ""
     var image:String = ""
+    var id:String = ""
 
 
 

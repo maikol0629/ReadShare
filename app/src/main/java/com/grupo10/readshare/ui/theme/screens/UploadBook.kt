@@ -38,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
@@ -52,7 +51,6 @@ import coil.compose.rememberImagePainter
 import com.grupo10.readshare.R
 import com.grupo10.readshare.model.Book
 import com.grupo10.readshare.navigation.AppScreens
-import com.grupo10.readshare.storage.StorageManager
 import com.grupo10.readshare.ui.theme.CampText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -66,10 +64,7 @@ fun UploadBook(
 ){
 
     var selectedImageBitmaps by remember { mutableStateOf<List<Uri>>(emptyList()) }
-
     val book = Book()
-    val context = LocalContext.current
-    val storage = StorageManager(context)
     var title by remember {
         mutableStateOf("")
     }
@@ -79,16 +74,13 @@ fun UploadBook(
     var description by remember {
         mutableStateOf("")
     }
-    var address by remember {
-        mutableStateOf("")
-    }
-    var add by remember {
-        mutableStateOf(false)
-    }
     val scope = rememberCoroutineScope()
 
     var price by remember {
         mutableStateOf("")
+    }
+    val mapFlag by remember {
+        mutableStateOf(false)
     }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
     Column (modifier = Modifier
@@ -100,6 +92,7 @@ fun UploadBook(
         .padding(20.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,) {
+
 
         Text(text = "Compartir libro", fontSize = 24.sp, fontFamily = FontFamily.SansSerif, color = colorResource(
             id = R.color.black
@@ -140,45 +133,6 @@ fun UploadBook(
                     }
                 }
 
-               /* Row(horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    TextField(
-                        value = address, onValueChange = {}, readOnly = true,
-                        modifier = Modifier
-                            .fillMaxWidth(0.8f)
-                            .height(70.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            colorResource(id = R.color.background1),
-                            focusedBorderColor = colorResource(
-                                id = R.color.black
-                            ),
-                            focusedLabelColor = colorResource(id = R.color.black),
-                            unfocusedBorderColor = colorResource(
-                                id = R.color.label
-                            ),
-
-                            ),
-                        textStyle = TextStyle(
-                            color = colorResource(id = R.color.black),
-                            fontSize = 18.sp,
-                            textAlign = TextAlign.Justify
-                        ),
-                        placeholder =  {
-                            Text(
-                                text = "Punto de encuentro",
-                                fontSize = 16.sp,
-                                color = colorResource(id = R.color.black)
-                            )
-                        }
-                    )
-                    IconButton(onClick = { add=true }) {
-                        Icon(painter = painterResource(id = R.drawable.map), contentDescription = "Punto de encuentro")
-                    }
-                } */
-
-
-
-
                 GalleryButton { uris ->
                     selectedImages = uris
                     selectedImageBitmaps= uris
@@ -191,10 +145,10 @@ fun UploadBook(
                             book.title = title
                             book.description = description
                             book.genero = genero
-                            book.precio = price
-                            scope.launch { book.images=storage.uploadImages(book,selectedImages)
+                            book.price = price
+                            scope.launch { book.uris = selectedImages
                                 onBook(book)
-                                delay(1000)
+                                delay(200)
                                 navController.navigate(AppScreens.Map.route)
                             }
 

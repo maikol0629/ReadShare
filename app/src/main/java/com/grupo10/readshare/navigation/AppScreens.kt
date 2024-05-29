@@ -10,4 +10,6 @@ sealed class AppScreens(val route: String) {
     object Upload : AppScreens("UploadBook")
     object Account : AppScreens("Account")
     object Map:AppScreens("MapView")
+
+    object Book : AppScreens("Book")
 }

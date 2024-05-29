@@ -47,6 +47,7 @@ import com.grupo10.readshare.storage.AuthRes
 import com.grupo10.readshare.ui.theme.CampText
 import com.grupo10.readshare.ui.theme.LinkText
 import com.grupo10.readshare.ui.theme.showToast
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -70,6 +71,7 @@ fun Login(navController: NavController, auth: AuthManager){
                     val credential = GoogleAuthProvider.getCredential(account.data.idToken, null)
                     scope.launch {
                         val fireUser = auth.signInWithGoogleCredential(credential)
+                        delay(500)
                         if (fireUser is AuthRes.Success) {
                             Log.i("Tag2",fireUser.data.toString())
                             Toast.makeText(current, "Bienvenidx", Toast.LENGTH_SHORT).show()

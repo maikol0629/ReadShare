@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FabPosition
@@ -37,12 +38,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.rememberImagePainter
@@ -83,7 +83,7 @@ fun Main(
         containerColor = colorResource(id = R.color.login),
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
-            if (currentScreen == BottomBarScreen.Home) {
+            if (currentScreen == BottomBarScreen.Home || currentScreen == BottomBarScreen.Account) {
                 FloatingActionButton(
                     onClick = { bookMenuFlag = true },
                     modifier = Modifier.size(60.dp),
@@ -91,7 +91,7 @@ fun Main(
                 ) {
                     Box {
                         if (bookMenuFlag) {
-                            addBook(
+                            BookType(
                                 bol = bookMenuFlag,
                                 bookFlag = { flag(it) },
                                 rt = { bookMenuFlag = it }, navController = navController
@@ -115,16 +115,8 @@ fun Main(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = name)
-            Button(onClick = {
-                auth.signOut()
-                navController.navigate(AppScreens.Login.route)
-            }) {
-                Text(text = "Cerrar sesión")
-            }
-
             when (currentScreen) {
-                BottomBarScreen.Home -> HomeScreen(storage = storage)
+                BottomBarScreen.Home -> HomeScreen(storage = storage, navController)
                 BottomBarScreen.Search -> SearchScreen()
                 BottomBarScreen.Menu -> MenuScreen()
                 BottomBarScreen.Account ->  AccountScreen(user, authManager = auth, navController = navController, storage = storage)
@@ -191,7 +183,7 @@ enum class BottomBarScreen {
 }
 
 @Composable
-fun HomeScreen(storage: StorageManager) {
+fun HomeScreen(storage: StorageManager, navController: NavController) {
     var sale by remember { mutableStateOf<List<Book>>(emptyList()) }
     var exchange by remember { mutableStateOf<List<Book>>(emptyList()) }
     var all by remember { mutableStateOf<List<Book>>(emptyList()) }
@@ -199,8 +191,8 @@ fun HomeScreen(storage: StorageManager) {
     LaunchedEffect(Unit) {
         launch {
             storage.getBooks().collect {
-                sale = it.filter { book -> book.precio.isNotEmpty() }
-                exchange = it.filter { book -> book.precio.isEmpty() }
+                sale = it.filter { book -> book.price.isNotEmpty() }
+                exchange = it.filter { book -> book.price.isEmpty() }
                 all = it
                 Log.i("books", all.toString())
             }
@@ -210,9 +202,9 @@ fun HomeScreen(storage: StorageManager) {
     if (all.isEmpty()) {
         Text(text = "Cargando libros...")
     } else {
-        RowWithCards(books = sale, title = "Venta")
+        RowWithCards(books = sale, title = "Venta", navController = navController)
         Spacer(modifier = Modifier.height(8.dp))
-        RowWithCards(books = exchange, title = "Intercambio")
+        RowWithCards(books = exchange, title = "Intercambio", navController = navController)
     }
 }
 
@@ -233,70 +225,71 @@ fun AccountScreen(user: User, authManager: AuthManager, navController: NavContro
 
 
 @Composable
-fun Card(book: Book) {
-    val painter = rememberImagePainter(
-        data = book.images[0]
-    )
+fun Card(book: Book, navController: NavController) {
+    val painter = rememberImagePainter(data = book.images[0])
     Surface(
         modifier = Modifier
             .padding(8.dp)
-            .width(150.dp)
-            .height(180.dp),
-        shape = RectangleShape,
-        color = colorResource(id = R.color.background1),
+            .width(160.dp)
+            .height(240.dp)
+            .clickable {
+                navController.navigate("book/${book.id}")
+            },
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 8.dp,
     ) {
         Column(
-            modifier = Modifier.padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(text = book.title, style = MaterialTheme.typography.bodyLarge)
+            Image(painter = painter, contentDescription = book.title, modifier = Modifier.size(120.dp))
             Spacer(modifier = Modifier.height(8.dp))
-
-            Image(painter = painter, contentDescription = null)
+            Text(text = book.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = book.user, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
         }
     }
 }
 
-
 @Composable
-fun RowWithCards(books:List<Book>, title:String) {
-    Column(modifier = Modifier.background(color = colorResource(id = R.color.background1)), verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = title, style = MaterialTheme.typography.titleLarge)
+fun RowWithCards(books: List<Book>, title: String, navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color = MaterialTheme.colorScheme.background)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(16.dp))
 
         LazyRow(modifier = Modifier.fillMaxWidth()) {
-            items(items = books) { item ->
-                Card(item)
+            items(items = books) { book ->
+                Card(book, navController)
             }
         }
     }
 }
 
-@Composable
-@Preview
-fun Prow(){
-    val book=Book(title = "title", images = listOf("https://firebasestorage.googleapis.com/v0/b/readshare-a4dcf.appspot.com/o/books%2Fnayi123%40gmail.com%2Fnayi123%40gmail.comt%C3%ADtulo%20dos%2F0?alt=media&token=29adb173-66ed-48c9-9295-96f3852550da"))
-    val list = listOf(book
-    ,book,book)
-RowWithCards(books = list,"Venta")
 
 
-}
 @Composable
-fun addBook(bol:Boolean,
-            navController: NavController,
-            rt:(Boolean)->Unit,
-            bookFlag :(Boolean)->Unit
+fun BookType(bol:Boolean,
+             navController: NavController,
+             rt:(Boolean)->Unit,
+             bookFlag :(Boolean)->Unit
             ) {
-    val menuItems = stringArrayResource(id = R.array.books)
-    val selectedItem = remember { mutableStateOf("") }
+    val menuItems = stringArrayResource(id = R.array.v_i)
     val expanded = remember { mutableStateOf(bol) }
-    Column(modifier = Modifier.padding(16.dp)) {
-        
+   // Column(modifier = Modifier.padding(16.dp)) {
         DropdownMenu(
             expanded = expanded.value,
-            onDismissRequest = { expanded.value = false
-                               rt(false)},
+            onDismissRequest = {
+                expanded.value = false
+                rt(false)
+                               },
         ) {
             menuItems.forEach { item ->
                 DropdownMenuItem(onClick = {
@@ -307,15 +300,8 @@ fun addBook(bol:Boolean,
                         navController.navigate(AppScreens.Upload.route)
                     }
                 },
-                    text = {Text(text = item)} ) 
-                    
-                
+                    text = {Text(text = item)} )
             }
-        }
 
-
-
-
-        
     }
 }

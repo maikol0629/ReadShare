@@ -1,38 +1,56 @@
 package com.grupo10.readshare.ui.theme.screens
 
 import android.annotation.SuppressLint
-import android.app.Activity
+import android.net.Uri
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import coil.compose.rememberImagePainter
+import com.grupo10.readshare.R
 import com.grupo10.readshare.model.Book
 import com.grupo10.readshare.model.User
 import com.grupo10.readshare.storage.AuthManager
@@ -42,26 +60,95 @@ import kotlinx.coroutines.launch
 @SuppressLint("CoroutineCreationDuringComposition")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Account(user: User, authManager: AuthManager, navController: NavController, storage:StorageManager){
+fun Account(user: User, authManager: AuthManager, navController: NavController, storage: StorageManager) {
     var books by remember { mutableStateOf<List<Book>>(emptyList()) }
+    var name by remember { mutableStateOf(user.name) }
+    var lastName by remember { mutableStateOf(user.lastName) }
+    var profileImage by remember { mutableStateOf(user.image) }
+    var newImageUri by remember { mutableStateOf<Uri?>(null) }
+    val scope = rememberCoroutineScope()
+
+    var flag by remember { mutableStateOf(false) }
+    var updateComplete by remember { mutableStateOf(false) }
+    var showImageDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        newImageUri = uri
+        flag = true // Marca que hubo un cambio
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("User Profile") }
+                title = { Text("User Profile") },
+                actions = {
+                    IconButton(onClick = {
+                        // Lógica para cerrar sesión
+                        authManager.signOut()
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    }) {
+                        Icon(imageVector = Icons.Default.ExitToApp, contentDescription = "Logout")
+                    }
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete Account")
+                    }
+                }
             )
+        },
+        floatingActionButton = {
+            if (flag) {
+                FloatingActionButton(onClick = {
+                    user.name = name
+                    user.lastName = lastName
+                    scope.launch {
+                        if (newImageUri != null) {
+                            storage.updateProfile(newImageUri!!, user)
+                        } else {
+                            storage.updateUserDetails(user)
+                        }
+                        // Marca que la actualización está completa
+                        updateComplete = true
+                        flag = false // Resetear el flag después de guardar
+                    }
+                }) {
+                    Icon(imageVector = Icons.Default.Edit, contentDescription = "")
+                }
+            }
+        },
+        bottomBar = {
+            BottomAppBar() {
+                Button(onClick = { /*TODO*/ }) {
+                    Text("Eliminar Cuenta")
+                }
+            }
         }
     ) { padding ->
+        if (updateComplete) {
+            // Resetear updateComplete para evitar múltiples recargas
+            updateComplete = false
+            // Volver a cargar los datos del usuario y libros
+            LaunchedEffect(Unit) {
+                launch {
+                    storage.getBooksUser().collect {
+                        books = it
+                        Log.i("books", it.toString())
+                    }
+                }
+                profileImage = user.image // Asegurarse de que la imagen de perfil se actualice
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
         ) {
-
-
-
-
             LaunchedEffect(Unit) {
                 launch {
                     storage.getBooksUser().collect {
@@ -70,51 +157,125 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
                     }
                 }
             }
-            ProfileHeader(user)
+            ProfileHeader(
+                profileImage = profileImage,
+                onImageClick = { showImageDialog = true },
+                onEditImageClick = { imagePickerLauncher.launch("image/*") },
+                name = name,
+                onNameChange = { name = it; flag = true },
+                lastName = lastName,
+                onLastNameChange = { lastName = it; flag = true }
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
             if (books.isEmpty()) {
-                Text(text = "Cargando libros...")
+                Text(text = "No hay libros para mostrar")
             } else {
                 Log.i("If", user.toString())
-
-                RowWithCards(books,"My Books")
+                RowWithCards(books, "My Books", navController)
             }
         }
     }
-}
 
-@Composable
-fun ProfileHeader(user: User) {
-
-    Row(
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Image(
-            painter = rememberImagePainter(user.image),
-            contentDescription = "Profile Picture",
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(text = "${user.name} ${user.lastName}", style = MaterialTheme.typography.bodyMedium)
+    if (showImageDialog) {
+        Dialog(onDismissRequest = { showImageDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x80000000)) // Fondo transparente oscuro
+                    .clickable { showImageDialog = false }, // Cerrar el diálogo al hacer clic en el fondo
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Image(
+                    painter = rememberImagePainter(profileImage),
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Account") },
+            text = { Text("Are you sure you want to delete your account? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        authManager.deleteUser(navController) // Llama a la función de suspensión para eliminar la cuenta
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    }
+                    showDeleteDialog = false
+                }) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
-
-@Preview(showBackground = true)
 @Composable
-fun DefaultPreview() {
-    val user = User()
-        user.image = "https://example.com/profile.jpg"
-        user.name = "John"
-        user.lastName = "Doe"
-
-
-    Account(user, AuthManager( LocalContext.current, LocalContext.current as Activity), NavController(LocalContext.current), StorageManager(LocalContext.current))
+fun ProfileHeader(
+    profileImage: String,
+    onImageClick: () -> Unit,
+    onEditImageClick: () -> Unit,
+    name: String,
+    onNameChange: (String) -> Unit,
+    lastName: String,
+    onLastNameChange: (String) -> Unit
+) {
+    var painter = painterResource(id = R.drawable.profile)
+    if (profileImage.isNotEmpty()) {
+        painter = rememberImagePainter(profileImage)
+    }
+    Column(
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            contentAlignment = androidx.compose.ui.Alignment.BottomEnd,
+            modifier = Modifier.size(100.dp)
+        ) {
+            Image(
+                painter = painter,
+                contentDescription = "Profile Picture",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .clickable { onImageClick() },
+                contentScale = ContentScale.Crop
+            )
+            IconButton(
+                onClick = onEditImageClick,
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .padding(4.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Edit, contentDescription = "Change Image", tint = Color.White)
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedTextField(
+            value = name,
+            onValueChange = onNameChange,
+            label = { Text("Name") }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = lastName,
+            onValueChange = onLastNameChange,
+            label = { Text("Last Name") }
+        )
+    }
 }
