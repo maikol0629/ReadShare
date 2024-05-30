@@ -268,6 +268,19 @@ Log.i("Entrada", fileUrl)
 
 
     }
+    suspend fun getBookById(bookId: String): Book? {
+        return try {
+            val snapshot = dbBooks.child(bookId).get().await()
+            if (snapshot.exists()) {
+                snapshot.getValue(Book::class.java)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("Error al obtener libro", e.toString())
+            null
+        }
+    }
 
      @SuppressLint("SuspiciousIndentation")
       suspend fun getBooks(): Flow<List<Book>> {

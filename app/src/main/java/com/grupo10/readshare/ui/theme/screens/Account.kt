@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -122,8 +123,8 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
         },
         bottomBar = {
             BottomAppBar() {
-                Button(onClick = { /*TODO*/ }) {
-                    Text("Eliminar Cuenta")
+                Button(onClick = { navController.navigate("conversations")}) {
+                    Text("Chats")
                 }
             }
         }
@@ -148,6 +149,7 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
+                .background(color = colorResource(id = R.color.background2))
         ) {
             LaunchedEffect(Unit) {
                 launch {

@@ -12,4 +12,6 @@ sealed class AppScreens(val route: String) {
     object Map:AppScreens("MapView")
 
     object Book : AppScreens("Book")
+    object Chats : AppScreens("NavGraphMessage")
+    object Chat : AppScreens("ChatScreen")
 }

@@ -234,6 +234,21 @@ class AuthManager(private val context:Context,
             null
         }
     }
+    suspend fun getUserDataByID(uid: String): User? {
+        return try {
+            val documentSnapshot = db.collection("users").document(uid).get().await()
+            if (documentSnapshot.exists()) {
+                documentSnapshot.toObject(User::class.java)!!
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+
 
     suspend fun deleteUser(navController: NavController) {
         try {

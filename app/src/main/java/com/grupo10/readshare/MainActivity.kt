@@ -18,17 +18,18 @@ import com.facebook.LoggingBehavior
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
+import com.grupo10.readshare.model.ChatViewModel
 import com.grupo10.readshare.model.MapViewModel
 import com.grupo10.readshare.navigation.AppNavigation
 import com.grupo10.readshare.storage.AuthManager
 import com.grupo10.readshare.storage.StorageManager
-import com.grupo10.readshare.ui.theme.ReadShareTheme
 import org.osmdroid.config.Configuration
 import org.osmdroid.wms.BuildConfig
 
 class MainActivity : ComponentActivity() {
 
     private val mapViewModel: MapViewModel by viewModels()
+    private lateinit var chatViewModel: ChatViewModel
     private lateinit var authManager: AuthManager
     private lateinit var storageManager: StorageManager
     private lateinit var facebookLoginLauncher: ActivityResultLauncher<Intent>
@@ -39,13 +40,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         callbackManager = CallbackManager.Factory.create()
         Configuration.getInstance().load(this, androidx.preference.PreferenceManager.getDefaultSharedPreferences(this))
+        chatViewModel = ChatViewModel(this)
         authManager = AuthManager(this,this@MainActivity)
         storageManager = StorageManager(this)
         // Registrar el lanzador para la actividad de inicio de sesión de Facebook
         setContent {
-            ReadShareTheme {
-                AppNavigation(mapViewModel,authManager, storageManager)
-            }
+                AppNavigation(mapViewModel,chatViewModel, authManager, storageManager, this)
         }
         requestLocationPermission()
     }

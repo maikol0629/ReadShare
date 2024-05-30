@@ -76,6 +76,7 @@ fun CampText(
     var pri by remember {
         mutableStateOf(false)
     }
+    var len = 30
 
     var visualTransformation = VisualTransformation.None
 
@@ -84,6 +85,9 @@ fun CampText(
     } else if (type=="price"){
         pri=true
 
+    }
+    if(name=="Descripcion"){
+        len = 100
     }
 
     when (type) {
@@ -104,7 +108,7 @@ fun CampText(
     TextField(
         value = text,
         onValueChange = {
-            if (it.length <= 30) {
+            if (it.length <= len) {
                 if(pri){
 
                     text = formatCurrency(text)

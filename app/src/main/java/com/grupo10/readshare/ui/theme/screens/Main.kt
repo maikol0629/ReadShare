@@ -227,28 +227,56 @@ fun AccountScreen(user: User, authManager: AuthManager, navController: NavContro
 @Composable
 fun Card(book: Book, navController: NavController) {
     val painter = rememberImagePainter(data = book.images[0])
-    Surface(
+    Box(
         modifier = Modifier
             .padding(8.dp)
             .width(160.dp)
             .height(240.dp)
-            .clickable {
-                navController.navigate("book/${book.id}")
-            },
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 8.dp,
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable {
+                    navController.navigate("book/${book.id}")
+                },
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 8.dp,
         ) {
-            Image(painter = painter, contentDescription = book.title, modifier = Modifier.size(120.dp))
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = book.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = book.user, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Image(painter = painter, contentDescription = book.title, modifier = Modifier.size(120.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = book.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = book.user,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+            }
         }
+        // Mostrar el ícono en la esquina superior derecha
+        val iconResId = if (book.price.isNotEmpty()) {
+            R.drawable.sale // Reemplaza con el ID de tu ícono de compra
+        } else {
+            R.drawable.exchange // Reemplaza con el ID de tu ícono de intercambio
+        }
+        Image(
+            painter = painterResource(id = iconResId),
+            contentDescription = if (book.price.isNotEmpty()) "Icono de compra" else "Icono de intercambio",
+            modifier = Modifier
+                .size(36.dp)
+                .align(Alignment.TopEnd)
+                .padding(8.dp) // Añadir padding si es necesario
+        )
     }
 }
 

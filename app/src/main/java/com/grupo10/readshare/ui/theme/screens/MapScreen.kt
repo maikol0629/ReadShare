@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.location.Geocoder
 import android.util.Log
 import android.view.MotionEvent
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -64,6 +66,7 @@ fun MapScreen(viewModel: MapViewModel, navController: NavController, book: Book,
         modifier = Modifier
             .fillMaxSize()
             .background(color = colorResource(id = R.color.background2))
+            .verticalScroll(ScrollState(1),true)
     ) {
         Box(
             modifier = Modifier

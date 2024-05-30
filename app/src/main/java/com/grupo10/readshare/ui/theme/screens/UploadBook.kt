@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -89,6 +91,7 @@ fun UploadBook(
             colorResource(id = R.color.background2)
 
         )
+        .verticalScroll(ScrollState(1),true)
         .padding(20.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,) {
@@ -121,7 +124,7 @@ fun UploadBook(
                     title = it
                 }
                 GeneroLiteraturaDropdown(
-                    generos = stringArrayResource(id = R.array.generos),
+                    generos = stringArrayResource(id = R.array.generos)," ",
                     onGeneroSelected = { genero = it }
                 )
                 CampText(type = "txt", name = "Descripcion") {
@@ -225,11 +228,12 @@ fun SelectedImagesPreview(selectedImageUris: List<Uri>) {
 @Composable
 fun GeneroLiteraturaDropdown(
     generos: Array<String>,
+    itemSelec: String,
     onGeneroSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var itemSelected by remember {
-        mutableStateOf("")
+        mutableStateOf(itemSelec)
     }
 
     Column {
