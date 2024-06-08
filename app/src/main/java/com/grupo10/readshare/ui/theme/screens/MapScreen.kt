@@ -2,7 +2,6 @@ package com.grupo10.readshare.ui.theme.screens
 
 import android.graphics.Canvas
 import android.location.Geocoder
-import android.util.Log
 import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -105,6 +104,7 @@ fun MapScreen(viewModel: MapViewModel, navController: NavController, book: Book,
             launch {
                 book.images = storageManager.uploadImages(book, book.uris)
                 delay(500)
+
                 storageManager.addBook(book)
                 delay(100)
                 upFlag = false
@@ -170,10 +170,6 @@ fun MapScreen(viewModel: MapViewModel, navController: NavController, book: Book,
                                         ) as? GeoPoint
                                         geoPoint?.let { point ->
                                             viewModel.updateSelectedLocation(point)
-                                            Log.i(
-                                                "MapScreen",
-                                                "Clicked at: ${point.latitude}, ${point.longitude}"
-                                            )
                                             // Update marker position
                                             if (marker == null) {
                                                 marker = Marker(mapView).apply {

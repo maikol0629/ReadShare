@@ -3,7 +3,6 @@ package com.grupo10.readshare.storage
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.navigation.NavController
 import com.facebook.CallbackManager
@@ -123,7 +122,6 @@ class AuthManager(
                 val email = (profile?.get("email") as? String).orEmpty()
                 val uploadedImageUrl = storage.uploadImageFromUrl(imageUrl,email, context)
                 delay(1000)// Asegúrate de que la imagen se sube antes de crear el usuario
-                Log.i("Image URL", "Image URL: $uploadedImageUrl")
                 val user = User(
                     id = firebaseUser.uid,
                     name = (profile?.get("given_name") as? String).orEmpty(),
@@ -131,8 +129,6 @@ class AuthManager(
                     email = (profile?.get("email") as? String).orEmpty(),
                     image = uploadedImageUrl
                 )
-                Log.i("user", "Image URL: $user")
-
                 if (createUser(user)) {
                     AuthRes.Success(firebaseUser)
                 } else {
@@ -157,7 +153,7 @@ class AuthManager(
             db.collection("users").document(user.id).set(user).await()
             true
         } catch (e: Exception) {
-            Log.e("createUser", "Error: ${e.message}")
+            showToast( "Error: ${e.message}",context)
             false
         }
     }
@@ -265,6 +261,16 @@ class AuthManager(
 
     suspend fun deleteUser(navController: NavController) {
         try {
+            val chatManager = ChatManager()
+            val user = this.getUserDataByID(this.getUserUid().toString())
+            val books = user?.books as MutableList<String>
+            if (books.isNotEmpty()) {
+                books.forEach {
+                    storage.getBookById(it)?.let { it1 -> storage.deleteBook(it1) }
+                }
+            }
+            storage.deleteImage(user.image).await()
+            chatManager.deleteAllUserChats(user.id)
             db.collection("users").document(getUserUid().toString()).delete().await()
             getCurrentUser()?.delete()?.await()
             signOut()
@@ -276,6 +282,7 @@ class AuthManager(
             showToast("Error al eliminar la cuenta: ${e.message}", context)
         }
     }
+
 
     fun signOut() {
         auth.signOut()

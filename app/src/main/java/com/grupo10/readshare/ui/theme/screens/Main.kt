@@ -200,7 +200,7 @@ fun HomeScreen(storage: StorageManager, navController: NavController) {
     }
 
     if (all.isEmpty()) {
-        Text(text = "Cargando libros...")
+        Text(text = "No hay libros para mostrar")
     } else {
         RowWithCards(books = sale, title = "Venta", navController = navController)
         Spacer(modifier = Modifier.height(8.dp))

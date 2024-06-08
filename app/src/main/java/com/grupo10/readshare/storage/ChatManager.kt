@@ -118,5 +118,17 @@ class ChatManager() {
             throw IllegalArgumentException("No tienes permiso para eliminar este chat.")
         }
     }
+    suspend fun deleteAllUserChats(userId: String) {
+            val userChats = getUserChats(userId)
+            if (userChats.isNotEmpty()) {
+                for (chat in userChats) {
+                    deleteChat(chat.id, userId)
+                }
+            } else {
+                Log.d("ChatManager", "El usuario no participa en ningún chat")
+            }
+    }
+
+
 
 }

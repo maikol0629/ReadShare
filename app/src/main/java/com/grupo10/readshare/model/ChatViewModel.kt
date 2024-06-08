@@ -2,7 +2,6 @@ package com.grupo10.readshare.model
 
 
 import android.icu.text.SimpleDateFormat
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -22,7 +21,6 @@ class ChatViewModel(private val authManager: AuthManager) : ViewModel() {
     private val repository: ChatManager = ChatManager()
     private val _chats = MutableStateFlow<List<Conversation>>(emptyList())
     val chats: StateFlow<List<Conversation>> = _chats
-
     init {
         viewModelScope.launch {
             refreshUserChats()
@@ -33,10 +31,8 @@ class ChatViewModel(private val authManager: AuthManager) : ViewModel() {
         viewModelScope.launch {
             authManager.getCurrentUser()?.reload()
             val userId = authManager.getUserUid()
-            Log.i("ChatViewModel", "User ID: $userId")
             if (userId != null) {
                 _chats.value = repository.getUserChats(userId)
-                Log.i("ChatViewModel", "Chats: ${_chats.value}")
             }
         }
     }
@@ -86,12 +82,8 @@ class ChatViewModel(private val authManager: AuthManager) : ViewModel() {
         val userId = authManager.getUserUid()
         if (userId != null) {
             viewModelScope.launch {
-                try {
                     repository.deleteChat(chatId, userId)
                     refreshUserChats() // Actualizar la lista de chats después de eliminar un chat
-                } catch (e: Exception) {
-                    Log.e("ChatViewModel", "Error deleting chat: ${e.message}")
-                }
             }
         }
     }

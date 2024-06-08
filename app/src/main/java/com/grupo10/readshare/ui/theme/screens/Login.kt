@@ -1,7 +1,6 @@
 package com.grupo10.readshare.ui.theme.screens
 
 import android.app.Activity
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
@@ -79,8 +78,7 @@ fun Login(navController: NavController, auth: AuthManager) {
                         withContext(Dispatchers.Main) {
                             when (fireUser) {
                                 is AuthRes.Success -> {
-                                    Log.i("Tag2", fireUser.data.toString())
-                                    Toast.makeText(current, "Bienvenidx", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(current, "Bienvenido(a)", Toast.LENGTH_SHORT).show()
                                     loading = false
                                     navController.navigate(AppScreens.Main.route) {
                                         popUpTo(AppScreens.Login.route) { inclusive = true }

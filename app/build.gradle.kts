@@ -90,6 +90,9 @@ dependencies {
     implementation("com.facebook.android:facebook-login:13.0.0")
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.1")
+    implementation ("com.google.accompanist:accompanist-pager:0.20.2")
+    implementation ("com.google.accompanist:accompanist-pager-indicators:0.20.2")
+
 
 
 

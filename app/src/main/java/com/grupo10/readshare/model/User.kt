@@ -7,5 +7,6 @@ data class User (
     var pass:String = "",
     var image:String = "",
     var id:String = "",
+    var books:List<String> = listOf()
 )
 

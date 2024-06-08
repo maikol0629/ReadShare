@@ -2,7 +2,6 @@ package com.grupo10.readshare.ui.theme.screens
 
 import android.annotation.SuppressLint
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -75,12 +74,13 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
     var updateComplete by remember { mutableStateOf(false) }
     var showImageDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showSignInDialog by remember { mutableStateOf(false) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         newImageUri = uri
-        flag = true // Marca que hubo un cambio
+        flag = true
     }
 
     Scaffold(
@@ -90,13 +90,7 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
                 colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = colorResource(id = R.color.background2)),
                 title = { Text("User Profile") },
                 actions = {
-                    IconButton(onClick = {
-                        authManager.signOut()  // Cerrar sesión
-                        navController.navigate(AppScreens.Login.route) {
-                            popUpTo(0) { inclusive = true }  // Elimina toda la pila de navegación
-                            launchSingleTop = true
-                        }
-                    }){
+                    IconButton(onClick = { showSignInDialog = true }) {
                         Icon(imageVector = Icons.Default.ExitToApp, contentDescription = "Logout", tint = Color.Black)
                     }
                     IconButton(onClick = { showDeleteDialog = true }) {
@@ -142,7 +136,6 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
                 launch {
                     storage.getBooksUser().collect {
                         books = it
-                        Log.i("books", it.toString())
                     }
                 }
                 profileImage = user.image // Asegurarse de que la imagen de perfil se actualice
@@ -160,7 +153,6 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
                 launch {
                     storage.getBooksUser().collect {
                         books = it
-                        Log.i("books", it.toString())
                     }
                 }
             }
@@ -178,7 +170,6 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
             if (books.isEmpty()) {
                 Text(text = "No hay libros para mostrar")
             } else {
-                Log.i("If", user.toString())
                 RowWithCards(books, "My Books", navController)
             }
         }
@@ -215,7 +206,7 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
                     scope.launch {
                         authManager.deleteUser(navController) // Llama a la función de suspensión para eliminar la cuenta
                         navController.navigate("login") {
-                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                     showDeleteDialog = false
@@ -230,7 +221,35 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
             }
         )
     }
+    if (showSignInDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignInDialog = false },
+            title = { Text("Sign Out") },
+            text = { Text("Are you sure you want to sign out?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    authManager.signOut()
+                    navController.navigate(AppScreens.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                    showSignInDialog = false
+                }) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignInDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+
 }
+
+
 
 @Composable
 fun ProfileHeader(

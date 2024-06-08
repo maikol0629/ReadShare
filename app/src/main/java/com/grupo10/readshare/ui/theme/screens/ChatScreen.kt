@@ -3,7 +3,6 @@ package com.grupo10.readshare.ui.theme.screens
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -77,39 +76,42 @@ fun ConversationsScreen(
         delay(1000)
     }
 
-    Log.i("chats", chats.toString())
-
     Scaffold(
         topBar = {
             TopAppBar(colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = colorResource(id = R.color.background2)),
                 title = { Text("Chats") },
-                )
+            )
         },
         containerColor = colorResource(id = R.color.background2)
-    ){
-        LazyColumn (modifier = Modifier
-            .background(colorResource(id = R.color.background2))
-            .fillMaxSize(),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.CenterHorizontally,
-            userScrollEnabled = true){
-            items(chats) { chat ->
-                ChatItem(
-                    chat = chat,
-                    authManager = authManager,
-                    storageManager = storageManager,
-                    onClick = {
-                        navController.navigate("chat/${chat.id}")
-                    },
-                    onDelete = {
-                        viewModel.deleteChat(chat.id)
-                    }
-                )
+    ){padding->
+        if (chats.isNotEmpty()) {
+            LazyColumn(
+                modifier = Modifier
+                    .background(colorResource(id = R.color.background2))
+                    .padding(padding)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                userScrollEnabled = true
+            )
+            {
+                items(chats) { chat ->
+                    ChatItem(
+                        chat = chat,
+                        authManager = authManager,
+                        storageManager = storageManager,
+                        onClick = {
+                            navController.navigate("chat/${chat.id}")
+                        },
+                        onDelete = {
+                            viewModel.deleteChat(chat.id)
+                        }
+                    )
+                }
             }
         }
     }
 }
-
 @Composable
 fun ChatItem(
     chat: Conversation,

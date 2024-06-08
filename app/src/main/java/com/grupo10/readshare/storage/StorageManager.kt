@@ -58,7 +58,6 @@ class StorageManager(private val context: Context, private val authManager: Auth
         filePaths.forEach {
             val fileRef = getStorageReference("books").child(authManager.getUserEmail()+book.title).child(cont.toString())
         val uploadTask = fileRef.putFile(it).addOnSuccessListener { taskSnapshot ->
-            // Éxito al subir la imagen
             // Puedes obtener la URL de descarga de la imagen subida si la necesitas
             fileRef.downloadUrl.addOnSuccessListener { uri ->
                 // Aquí puedes obtener la URI de descarga de la imagen subida
@@ -85,11 +84,7 @@ class StorageManager(private val context: Context, private val authManager: Auth
                 if (email.isNotEmpty()) { // Verificar que el email no esté vacío
                     val tempFile = downloadFileFromUrl(fileUrl)
                     val fileUri = Uri.fromFile(tempFile)
-                    Log.i("fileUri", fileUri.toString())
-
                     val fileRef = getStorageReference("users").child(email)
-                    Log.e("fileRef", fileRef.toString())
-
                     fileRef.putFile(fileUri).await()
                     image = fileRef.downloadUrl.await().toString()
                     tempFile.delete()
@@ -97,12 +92,10 @@ class StorageManager(private val context: Context, private val authManager: Auth
                     throw IllegalArgumentException("Email cannot be empty")
                 }
             } catch (e: Exception) {
-                Log.e("uploadImageFromUrl", "Error: ${e.message}")
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Failed to upload image: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
-            Log.e("image", image)
             image
         }
     }
@@ -125,31 +118,11 @@ class StorageManager(private val context: Context, private val authManager: Auth
 
             inputStream.close()
             outputStream.close()
-
-            Log.i("tempFile", tempFile.absolutePath)
             tempFile
         }
     }
 
-    private suspend fun uploadFileAndGetDownloadUrl(fileRef: StorageReference, fileUri: Uri, context: Context): String {
-        return withContext(Dispatchers.IO) {
-            try {
-                fileRef.putFile(fileUri).await()
-                val downloadUrl = fileRef.downloadUrl.await().toString()
-                downloadUrl
-            } catch (e: Exception) {
-                Log.e("uploadFile", "Error: ${e.message}")
-                withContext(Dispatchers.Main) {
-                    showToast("Failed to upload file: ${e.message}", context)
-                }
-                ""
-            }
-        }
-
-    }
-
-
-    private suspend fun uploadImageFromUri(filePath: Uri): String = suspendCancellableCoroutine { continuation ->
+    suspend fun uploadImageFromUri(filePath: Uri): String = suspendCancellableCoroutine { continuation ->
         val fileRef = authManager.getUserUid().let { getStorageReference("users").child(it.toString()) }
         val uploadTask = fileRef.putFile(filePath)
 
@@ -171,7 +144,7 @@ class StorageManager(private val context: Context, private val authManager: Auth
             uploadTask.cancel()
         }
     }
-    private fun deleteImage(imageUrl: String): Deferred<Unit> {
+    fun deleteImage(imageUrl: String): Deferred<Unit> {
         val deferred = CompletableDeferred<Unit>()
         try {
             if (imageUrl.isEmpty()) {
@@ -201,7 +174,6 @@ class StorageManager(private val context: Context, private val authManager: Auth
                 deferred.complete(Unit)
             }
         } catch (e: Exception) {
-            Log.e("Error borrando imagen", e.toString())
             deferred.completeExceptionally(e)
         }
         return deferred
@@ -229,32 +201,21 @@ class StorageManager(private val context: Context, private val authManager: Auth
     }
 
     suspend fun deleteBook(book: Book) {
-        try {
-            // Borrar las imágenes asociadas al libro
             deleteBookImages(book.images)
-            // Borrar el libro de la base de datos
             dbBooks.child(book.id).removeValue().await()
-            Log.d("Firebase", "Libro eliminado con éxito")
-        } catch (e: Exception) {
-            Log.e("Error al eliminar libro", e.toString())
-        }
     }
 
     private suspend fun deleteBookImages(imageUrls: List<String>) {
         imageUrls.forEach { imageUrl ->
-            try {
                 deleteImage(imageUrl).await()
-                Log.d("Firebase", "Imagen eliminada con éxito: $imageUrl")
-            } catch (e: Exception) {
-                Log.e("Error al eliminar imagen", e.toString())
-            }
         }
     }
 
-
     suspend fun addBook(book: Book,){
         try {
+            val user = authManager.getUserDataByID(authManager.getUserUid().toString())
             val key = dbBooks.push().key
+            val books = user?.books as MutableList<String>
             if (key!=null){
 
                 book.user= authManager.getUserUid().toString()
@@ -266,9 +227,11 @@ class StorageManager(private val context: Context, private val authManager: Auth
                             Log.d("Firebase", "Datos guardados con éxito")
                         }
                     }.await()
+                books.add(key)
+                updateUserDetails(user)
             }
         }catch (e:Exception){
-            Log.e("No agregó", e.toString())
+            null
         }
 
 
@@ -284,19 +247,20 @@ class StorageManager(private val context: Context, private val authManager: Auth
                 null
             }
         } catch (e: Exception) {
-            Log.e("Error al obtener libro", e.toString())
             null
         }
     }
 
-     @SuppressLint("SuspiciousIndentation")
+
+
+
+    @SuppressLint("SuspiciousIndentation")
       suspend fun getBooks(): Flow<List<Book>> {
          val flow = callbackFlow {
              val listener = dbRef.addValueEventListener(object : ValueEventListener {
                  override fun onDataChange(snapshot: DataSnapshot) {
                      val books = snapshot.children.mapNotNull {  snapshot ->
                          val book = snapshot.getValue(Book::class.java)
-                         Log.i("TAG",book.toString())
                          snapshot.key?.let { book?.copy() }
                      }
                      trySend(books).isSuccess
@@ -318,13 +282,6 @@ class StorageManager(private val context: Context, private val authManager: Auth
             }
         }
     }
-    suspend fun getBooksExchange(): Flow<List<Book>> {
-        return getBooks().map { books ->
-            books.filter { book ->
-                book.price.isEmpty()
-            }
-        }
-    }
 
     suspend fun getBooksUser(): Flow<List<Book>> {
         val flow = callbackFlow {
@@ -332,7 +289,6 @@ class StorageManager(private val context: Context, private val authManager: Auth
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val books = snapshot.children.mapNotNull {  snapshot ->
                         val book = snapshot.getValue(Book::class.java)
-                        Log.i("TAG",book.toString())
                         snapshot.key?.let { book?.copy() }
                     }
                     trySend(books.filter { book -> book.user == authManager.getUserUid() }).isSuccess
@@ -348,16 +304,18 @@ class StorageManager(private val context: Context, private val authManager: Auth
 
     }
 
+
+
     @SuppressLint("SuspiciousIndentation")
     suspend fun searchBooksByTitle(query: String): Flow<List<Book>> {
         return callbackFlow {
             val listener = dbRef.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val books = snapshot.children.mapNotNull { snapshot ->
-                        val book = snapshot.getValue(Book::class.java)
-                        snapshot.key?.let { book?.copy() }
+                    val books = snapshot.children.mapNotNull { snapshot1 ->
+                        val book = snapshot1.getValue(Book::class.java)
+                        snapshot1.key?.let { book?.copy() }
                     }.filter { book ->
-                        book?.title?.contains(query, ignoreCase = true) == true
+                        book.title.contains(query, ignoreCase = true)
                     }
                     trySend(books).isSuccess
                 }

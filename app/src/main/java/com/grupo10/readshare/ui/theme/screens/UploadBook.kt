@@ -81,9 +81,6 @@ fun UploadBook(
     var price by remember {
         mutableStateOf("")
     }
-    val mapFlag by remember {
-        mutableStateOf(false)
-    }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
     Column (modifier = Modifier
         .fillMaxSize()
@@ -187,8 +184,10 @@ fun UploadBook(
 fun GalleryButton(onImagesSelected: (imageBitmaps: List<Uri>) -> Unit) {
 
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetMultipleContents()) { uris ->
-        onImagesSelected(uris)
+        val limitedUris = if (uris.size > 5) uris.take(5) else uris
+        onImagesSelected(limitedUris)
     }
+
 
     IconButton(
         onClick = { launcher.launch("image/*") },

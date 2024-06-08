@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -101,7 +100,6 @@ fun Sigin(navController: NavController,
                 contentAlignment = Alignment.TopCenter
             ) {
 
-
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -118,37 +116,6 @@ fun Sigin(navController: NavController,
 
                     Text(text = "Regístrese con:", fontSize = 18.sp)
 
-
-                    Row(
-                        modifier = Modifier
-                            .padding(10.dp)
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-
-
-
-                        IconButton(onClick = { }) {
-                            Image(
-                                painter = painterResource(id = R.drawable.google),
-                                contentDescription = ""
-                            )
-                        }
-                        Text(
-                            text = "ó",
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                            fontSize = 16.sp
-                        )
-                        IconButton(onClick = { /*TODO*/ }) {
-                            Image(
-                                painter = painterResource(id = R.drawable.facebook),
-                                contentDescription = ""
-                            )
-                        }
-
-                    }
                     CampText(type = "", name = "Nombres") {
                         user.name = it
                     }
@@ -172,7 +139,7 @@ fun Sigin(navController: NavController,
                             Button(
                                 onClick = {
 
-                                    if (UserisNotBlank(user)){
+                                    if (UserIsNotBlank(user)){
                                         if((user.pass.length>6)){
                                             if(user.pass == cPass) {
 
@@ -214,6 +181,6 @@ fun Sigin(navController: NavController,
         }
         }
     }
-fun UserisNotBlank(user: User): Boolean {
+fun UserIsNotBlank(user: User): Boolean {
     return user.name.isNotBlank() && user.email.isNotBlank() && user.pass.isNotBlank() && user.lastName.isNotBlank()
 }
