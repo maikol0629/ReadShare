@@ -28,7 +28,6 @@ import com.grupo10.readshare.model.User
 import com.grupo10.readshare.navigation.AppScreens
 import com.grupo10.readshare.ui.theme.showToast
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -39,12 +38,14 @@ sealed class AuthRes<out T> {
     data class Success<T>(val data: T): AuthRes<T>()
     data class Error(val errorMessage: String): AuthRes<Nothing>()
 }
-class AuthManager(private val context:Context,
-    private val activity: Activity) {
+class AuthManager(
+    private val context: Context,
+    private val activity: Activity
+) {
 
     private val auth = FirebaseAuth.getInstance()
-    private val storage = StorageManager(context)
-    private val db =FirebaseFirestore.getInstance()
+    private val storage = StorageManager(context, this)
+    private val db = FirebaseFirestore.getInstance()
 
     private val googleSignInClient: GoogleSignInClient by lazy {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -53,13 +54,17 @@ class AuthManager(private val context:Context,
             .build()
         GoogleSignIn.getClient(context, gso)
     }
-    // Add a callbackManager instance
+
     internal val callbackManager = CallbackManager.Factory.create()
 
     fun getUserUid(): String? {
         return auth.currentUser?.uid
     }
-    private fun getCurrentUser(): FirebaseUser? {
+    fun getUserEmail(): String? {
+        return auth.currentUser?.email
+    }
+
+    internal fun getCurrentUser(): FirebaseUser? {
         auth.currentUser?.reload()
         return auth.currentUser
     }
@@ -84,7 +89,6 @@ class AuthManager(private val context:Context,
                 showToast("Error during Facebook login: ${error.message}", context)
             }
         })
-
     }
 
     private suspend fun signInWithFacebookCredential(credential: AuthCredential): AuthRes<FirebaseUser> {
@@ -97,8 +101,6 @@ class AuthManager(private val context:Context,
         }
     }
 
-
-
     fun handleSignInResult(task: Task<GoogleSignInAccount>): AuthRes<GoogleSignInAccount>? {
         return try {
             val account = task.getResult(ApiException::class.java)
@@ -107,81 +109,87 @@ class AuthManager(private val context:Context,
             AuthRes.Error(e.message ?: "Google sign-in failed.")
         }
     }
-    @OptIn(DelicateCoroutinesApi::class)
-    suspend fun signInWithGoogleCredential(credential: AuthCredential): AuthRes<FirebaseUser>? {
+
+    suspend fun signInWithGoogleCredential(credential: AuthCredential): AuthRes<FirebaseUser> {
         return try {
-            val db =FirebaseFirestore.getInstance()
-            val user = User()
-            val firebaseUser = auth.signInWithCredential(credential).await()
-            firebaseUser.user?.let {
-                val profile = firebaseUser.additionalUserInfo?.profile
-                val documentSnapshot = db.collection("users").document(it.uid).get().await()
-                val flag = documentSnapshot.exists()
-                if(flag) {
-                    AuthRes.Success(it)
-                }else{
-                    user.name = (profile?.get("given_name") as? String).toString()
-                    user.lastName = (profile?.get("family_name") as? String).toString()
-                    user.email = (profile?.get("email") as? String).toString()
-                    val photo = (profile?.get("picture") as? String).toString()
-                    Log.i("photo", photo)
-                    val image = storage.uploadImageFromUrl(photo, context)
-                    delay(250)
-                    user.image = image
-                    user.id = firebaseUser.user?.uid.toString()
-                    createUser(user)
-                    delay(250)
-                    Log.i("User image", user.image)
-                    AuthRes.Success(it)
+            val userResult = auth.signInWithCredential(credential).await()
+            val firebaseUser = userResult.user ?: throw Exception("Sign in with Google failed.")
+            val profile = userResult.additionalUserInfo?.profile
+
+            val documentSnapshot = db.collection("users").document(firebaseUser.uid).get().await()
+
+            if (!documentSnapshot.exists()) {
+                val imageUrl = profile?.get("picture") as? String ?: ""
+                val email = (profile?.get("email") as? String).orEmpty()
+                val uploadedImageUrl = storage.uploadImageFromUrl(imageUrl,email, context)
+                delay(1000)// Asegúrate de que la imagen se sube antes de crear el usuario
+                Log.i("Image URL", "Image URL: $uploadedImageUrl")
+                val user = User(
+                    id = firebaseUser.uid,
+                    name = (profile?.get("given_name") as? String).orEmpty(),
+                    lastName = (profile?.get("family_name") as? String).orEmpty(),
+                    email = (profile?.get("email") as? String).orEmpty(),
+                    image = uploadedImageUrl
+                )
+                Log.i("user", "Image URL: $user")
+
+                if (createUser(user)) {
+                    AuthRes.Success(firebaseUser)
+                } else {
+                    AuthRes.Error("Error al crear el usuario")
                 }
-                AuthRes.Success(it)
-            } ?: throw Exception("Sign in with Google failed.")
+            } else {
+                AuthRes.Success(firebaseUser) // Usuario ya existe
+            }
         } catch (e: Exception) {
             AuthRes.Error(e.message ?: "Sign in with Google failed.")
         }
     }
+
     fun signInWithGoogle(googleSignInLauncher: ActivityResultLauncher<Intent>) {
         val signInIntent = googleSignInClient.signInIntent
         googleSignInLauncher.launch(signInIntent)
     }
 
-    private suspend fun createUser(user: User) {
-        db.collection("users").document(user.id).set(user).await()
-    }
 
+    private suspend fun createUser(user: User): Boolean {
+        return try {
+            db.collection("users").document(user.id).set(user).await()
+            true
+        } catch (e: Exception) {
+            Log.e("createUser", "Error: ${e.message}")
+            false
+        }
+    }
 
     suspend fun login(email: String, pass: String, navController: NavController) {
         try {
             auth.signInWithEmailAndPassword(email, pass)
                 .addOnCompleteListener {
                     if (it.isSuccessful) {
-                        if(checkEmailVerification()){
+                        if (checkEmailVerification()) {
                             navController.navigate(AppScreens.Main.route) {
                                 popUpTo(AppScreens.Login.route) {
                                     inclusive = true
                                 }
                                 launchSingleTop = true
                             }
-                        }else{
-                            showToast("Email no verificado",context)
+                        } else {
+                            showToast("Email no verificado", context)
                             auth.signOut()
                         }
                     }
                 }
-                .addOnFailureListener{
+                .addOnFailureListener {
                     showToast("Error desconocido", context)
                 }
                 .await()
-        }catch (e:Exception){
-            showToast("Correo o contraseña incorrecta", context = this.context)
+        } catch (e: Exception) {
+            showToast("Correo o contraseña incorrecta", context)
         }
-
     }
 
-
-
-
-    suspend fun sigInWithEmailAndPass(
+    suspend fun signInWithEmailAndPass(
         user: User, navController: NavController,
         current: Context
     ) {
@@ -209,23 +217,29 @@ class AuthManager(private val context:Context,
         }
     }
 
-
-    fun checkEmailVerification():Boolean {
+    fun checkEmailVerification(): Boolean {
         val user = getCurrentUser()
-        if (user != null && user.isEmailVerified) {
-            return true
+        return if (user != null && user.isEmailVerified) {
+            true
         } else {
             auth.signOut()
-            return false
+            false
+        }
+    }
+    suspend fun resetPassword(email: String): AuthRes<Unit> {
+        return try {
+            auth.sendPasswordResetEmail(email).await()
+            AuthRes.Success(Unit)
+        } catch(e: Exception) {
+            AuthRes.Error(e.message ?: "Error al restablecer la contraseña")
         }
     }
 
-    
     suspend fun getUserData(): User? {
         return try {
             val documentSnapshot = db.collection("users").document(getUserUid().toString()).get().await()
             if (documentSnapshot.exists()) {
-                documentSnapshot.toObject(User::class.java)!!
+                documentSnapshot.toObject(User::class.java)
             } else {
                 null
             }
@@ -234,11 +248,12 @@ class AuthManager(private val context:Context,
             null
         }
     }
+
     suspend fun getUserDataByID(uid: String): User? {
         return try {
             val documentSnapshot = db.collection("users").document(uid).get().await()
             if (documentSnapshot.exists()) {
-                documentSnapshot.toObject(User::class.java)!!
+                documentSnapshot.toObject(User::class.java)
             } else {
                 null
             }
@@ -248,17 +263,10 @@ class AuthManager(private val context:Context,
         }
     }
 
-
-
     suspend fun deleteUser(navController: NavController) {
         try {
-            // Eliminar datos del usuario en Firestore
-            val db = FirebaseFirestore.getInstance()
             db.collection("users").document(getUserUid().toString()).delete().await()
-
-            // Eliminar usuario autenticado
             getCurrentUser()?.delete()?.await()
-            // Cerrar sesión y navegar a la pantalla de inicio de sesión
             signOut()
             navController.navigate("login") {
                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
@@ -272,10 +280,11 @@ class AuthManager(private val context:Context,
     fun signOut() {
         auth.signOut()
         googleSignInClient.signOut()
-        getCurrentUser()?.reload()
     }
 
 }
+
+
 
 
 

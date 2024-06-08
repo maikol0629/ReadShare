@@ -1,4 +1,4 @@
-@file:Suppress("NAME_SHADOWING")
+@file:Suppress("NAM E_SHADOWING", "NAME_SHADOWING")
 
 package com.grupo10.readshare.navigation
 
@@ -19,7 +19,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.google.firebase.auth.FirebaseAuth
 import com.grupo10.readshare.model.Book
 import com.grupo10.readshare.model.ChatViewModel
 import com.grupo10.readshare.model.MapViewModel
@@ -36,66 +35,49 @@ import com.grupo10.readshare.ui.theme.screens.MapScreen
 import com.grupo10.readshare.ui.theme.screens.NewChatScreen
 import com.grupo10.readshare.ui.theme.screens.Sigin
 import com.grupo10.readshare.ui.theme.screens.UploadBook
-import com.grupo10.readshare.ui.theme.screens.Welcome
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @SuppressLint("CoroutineCreationDuringComposition")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun AppNavigation(mapViewModel: MapViewModel, chatViewModel: ChatViewModel, authManager: AuthManager, storageManager: StorageManager, context: Context) {
+fun AppNavigation(mapViewModel: MapViewModel, chatViewModel: ChatViewModel,chatManager: ChatManager, authManager: AuthManager, storageManager: StorageManager, context: Context) {
     val navController = rememberNavController()
     val viewModel: MainViewModel = viewModel()
-    val chatManager = ChatManager(context)
     var books by remember { mutableStateOf<List<Book>>(emptyList()) }
-    var scope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     val flagBook = remember {
         mutableStateOf(false)
     }
-    val currentUser = FirebaseAuth.getInstance().currentUser
+    var currentUser = authManager.getCurrentUser()
     var book: Book  = Book()
-    LaunchedEffect(Unit) {
-
-
-        delay(1500)
-        if (currentUser != null) {
-            // Si hay un usuario autenticado, navegar directamente a la pantalla principal
-            currentUser.uid.let { viewModel.setUserId(it) }
-            navController.navigate(AppScreens.Main.route) {
-                popUpTo(AppScreens.Charge.route) {
-                    inclusive = true
-                }
-                launchSingleTop = true
-            }
-        } else {
-            // Si no hay usuario autenticado, navegar a la pantalla de carga
-            navController.navigate(AppScreens.Welcome.route) {
-                popUpTo(AppScreens.Charge.route) {
-                    inclusive = true
-                }
-                launchSingleTop = true
-            }
-        }
-    }
 
     NavHost(navController = navController, startDestination = AppScreens.Charge.route) {
         composable(route = AppScreens.Charge.route) {
             Charge()
             viewModel.setUserId(null.toString())
             scope.launch {
-                delay(1000)
-            }
-            navController.navigate(AppScreens.Welcome.route) {
-                popUpTo(AppScreens.Charge.route) {
-                    inclusive = true
+                delay(1800)
+                if (currentUser?.uid?.isNotEmpty() == true) {
+                    // Si hay un usuario autenticado, navegar directamente a la pantalla principal
+                    currentUser!!.uid.let { viewModel.setUserId(it) }
+                    navController.navigate(AppScreens.Main.route) {
+                        popUpTo(AppScreens.Charge.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                } else {
+                    // Si no hay usuario autenticado, navegar a la pantalla de carga
+                    navController.navigate(AppScreens.Login.route) {
+                        popUpTo(AppScreens.Charge.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
                 }
-                launchSingleTop = true
             }
 
-
-        }
-        composable(route = AppScreens.Welcome.route) {
-            Welcome(navController)
         }
         composable(route = AppScreens.Login.route) {
             Login(navController,authManager)
@@ -127,14 +109,16 @@ fun AppNavigation(mapViewModel: MapViewModel, chatViewModel: ChatViewModel, auth
             val bookId = backStackEntry.arguments?.getString("bookId")
             val book = books.find { it.id == bookId }  // Reemplaza `allBooks` con tu lista de libros
             book?.let {
+                authManager.getCurrentUser()?.reload()
+                currentUser = authManager.getCurrentUser()
                 if (currentUser != null) {
-                    BookScreen(book = it, currentUser.uid,storageManager,authManager, chatManager, navController, context)
+                    BookScreen(book = it, currentUser!!.uid,storageManager,authManager, chatManager, navController, context)
                 }
             }
         }
 
         composable("conversations") {
-            ConversationsScreen(navController, chatViewModel)
+            ConversationsScreen(navController, chatViewModel, authManager, storageManager)
         }
         composable("chat/{chatId}") { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId")

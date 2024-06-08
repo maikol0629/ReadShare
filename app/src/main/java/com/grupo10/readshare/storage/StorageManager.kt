@@ -4,8 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import com.google.firebase.Firebase
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -37,24 +37,18 @@ import java.io.OutputStream
 import java.net.URL
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
-class StorageManager(private val context: Context) {
+class StorageManager(private val context: Context, private val authManager: AuthManager) {
     private val storage = Firebase.storage
     private val storageRef = storage.reference
     private val dbUser = FirebaseFirestore.getInstance()
     private val db = FirebaseDatabase.getInstance()
     private val dbRef = FirebaseDatabase.getInstance().reference.child("books")
     private val dbBooks = db.getReference("books")
-    private val userId = FirebaseAuth.getInstance().currentUser
-    private val  email = userId?.email
 
-    private fun getEmail():String{
-        return email.toString()
-    }
 
     private fun getStorageReference(path:String):StorageReference{
-        return storageRef.child(path).child(email?:"")
+        return storageRef.child(path)
     }
 
     suspend fun uploadImages(book: Book, filePaths:List<Uri>
@@ -62,7 +56,7 @@ class StorageManager(private val context: Context) {
         val images: MutableList<String> = mutableListOf()
         var cont = 0
         filePaths.forEach {
-            val fileRef = getStorageReference("books").child(email+book.title).child(cont.toString())
+            val fileRef = getStorageReference("books").child(authManager.getUserEmail()+book.title).child(cont.toString())
         val uploadTask = fileRef.putFile(it).addOnSuccessListener { taskSnapshot ->
             // Éxito al subir la imagen
             // Puedes obtener la URL de descarga de la imagen subida si la necesitas
@@ -83,70 +77,80 @@ class StorageManager(private val context: Context) {
         return images
 
     }
-    suspend fun uploadImageFromUrl(fileUrl: String, context: Context): String {
+
+    suspend fun uploadImageFromUrl(fileUrl: String, email: String, context: Context): String {
         var image = ""
-        val fileRef = email?.let { getStorageReference("users").child(it) }
-Log.i("Entrada", fileUrl)
-        try {
-            // Descargar el archivo desde la URL en un hilo de fondo
-            val tempFile = withContext(Dispatchers.IO) {
-                val url = URL(fileUrl)
-                val connection = url.openConnection()
-                connection.connect()
-                val inputStream: InputStream = connection.getInputStream()
-                val tempFile = File.createTempFile("tempImage", ".jpg")
-                val outputStream: OutputStream = FileOutputStream(tempFile)
+        return withContext(Dispatchers.IO) {
+            try {
+                if (email.isNotEmpty()) { // Verificar que el email no esté vacío
+                    val tempFile = downloadFileFromUrl(fileUrl)
+                    val fileUri = Uri.fromFile(tempFile)
+                    Log.i("fileUri", fileUri.toString())
 
-                // Guardar el archivo descargado en un archivo temporal
-                val buffer = ByteArray(1024)
-                var bytesRead: Int
-                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                    outputStream.write(buffer, 0, bytesRead)
+                    val fileRef = getStorageReference("users").child(email)
+                    Log.e("fileRef", fileRef.toString())
+
+                    fileRef.putFile(fileUri).await()
+                    image = fileRef.downloadUrl.await().toString()
+                    tempFile.delete()
+                } else {
+                    throw IllegalArgumentException("Email cannot be empty")
                 }
-
-                inputStream.close()
-                outputStream.close()
-                Log.i("tempFile", tempFile.toString())
-                tempFile
-
+            } catch (e: Exception) {
+                Log.e("uploadImageFromUrl", "Error: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed to upload image: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
-
-            // Subir el archivo a Firebase Storage y obtener la URL de descarga
-            Log.i("Imagen In",image)
-            val fileUri = Uri.fromFile(tempFile)
-            image = uploadFileAndGetDownloadUrl(fileRef, fileUri, context)
-
-            // Borrar el archivo temporal
-            tempFile.delete()
-        } catch (e: Exception) {
-            showToast("Error al procesar la imagen: ${e.message}", context)
+            Log.e("image", image)
+            image
         }
-        Log.i("Imagen",image)
-        return image
     }
 
-    private suspend fun uploadFileAndGetDownloadUrl(fileRef: StorageReference?, fileUri: Uri, context: Context): String {
-        return suspendCoroutine { continuation ->
-            fileRef?.putFile(fileUri)
-                ?.addOnSuccessListener {
-                    fileRef.downloadUrl.addOnSuccessListener { uri ->
-                        val downloadUrl = uri.toString()
-                        continuation.resume(downloadUrl)
-                    }.addOnFailureListener { exception ->
-                        showToast("Error al obtener URL de la imagen: ${exception.message}", context)
-                        continuation.resume("")
-                    }
-                }
-                ?.addOnFailureListener { exception ->
-                    showToast("Error al subir imagen: ${exception.message}", context)
-                    continuation.resume("")
-                }
+    private suspend fun downloadFileFromUrl(fileUrl: String): File {
+        return withContext(Dispatchers.IO) {
+            val url = URL(fileUrl)
+            val connection = url.openConnection()
+            connection.connect()
+
+            val inputStream: InputStream = connection.getInputStream()
+            val tempFile = File.createTempFile("tempImage", ".jpg")
+            val outputStream: OutputStream = FileOutputStream(tempFile)
+
+            val buffer = ByteArray(1024)
+            var bytesRead: Int
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                outputStream.write(buffer, 0, bytesRead)
+            }
+
+            inputStream.close()
+            outputStream.close()
+
+            Log.i("tempFile", tempFile.absolutePath)
+            tempFile
         }
+    }
+
+    private suspend fun uploadFileAndGetDownloadUrl(fileRef: StorageReference, fileUri: Uri, context: Context): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                fileRef.putFile(fileUri).await()
+                val downloadUrl = fileRef.downloadUrl.await().toString()
+                downloadUrl
+            } catch (e: Exception) {
+                Log.e("uploadFile", "Error: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    showToast("Failed to upload file: ${e.message}", context)
+                }
+                ""
+            }
+        }
+
     }
 
 
     private suspend fun uploadImageFromUri(filePath: Uri): String = suspendCancellableCoroutine { continuation ->
-        val fileRef = userId.let { getStorageReference("users").child(it.toString()) }
+        val fileRef = authManager.getUserUid().let { getStorageReference("users").child(it.toString()) }
         val uploadTask = fileRef.putFile(filePath)
 
         uploadTask.addOnSuccessListener { taskSnapshot ->
@@ -252,7 +256,8 @@ Log.i("Entrada", fileUrl)
         try {
             val key = dbBooks.push().key
             if (key!=null){
-                book.user= userId?.uid.toString()
+
+                book.user= authManager.getUserUid().toString()
                 book.id = key
                 book.uris = emptyList()
                 dbBooks.child(key).setValue(book)
@@ -268,6 +273,8 @@ Log.i("Entrada", fileUrl)
 
 
     }
+
+
     suspend fun getBookById(bookId: String): Book? {
         return try {
             val snapshot = dbBooks.child(bookId).get().await()
@@ -299,18 +306,15 @@ Log.i("Entrada", fileUrl)
                  }
              })
              awaitClose { dbRef.removeEventListener(listener) }
-             Log.i("TAG","flow.toString()")
          }
-         Log.i("Flow", flow.toString())
-
          return flow
 
 
     }
-    suspend fun getBooksSale(): Flow<List<Book>> {
+    suspend fun getBooksCategory(category: String): Flow<List<Book>> {
         return getBooks().map { books ->
             books.filter { book ->
-                book.price.isNotEmpty()
+                book.genero == category
             }
         }
     }
@@ -331,21 +335,40 @@ Log.i("Entrada", fileUrl)
                         Log.i("TAG",book.toString())
                         snapshot.key?.let { book?.copy() }
                     }
-                    trySend(books.filter { book -> book.user == userId?.uid.toString() }).isSuccess
+                    trySend(books.filter { book -> book.user == authManager.getUserUid() }).isSuccess
                 }
                 override fun onCancelled(error: DatabaseError) {
                     close(error.toException())
                 }
             })
             awaitClose { dbRef.removeEventListener(listener) }
-            Log.i("TAG","flow.toString()")
         }
-        Log.i("Flow", flow.toString())
         return flow
 
 
     }
 
+    @SuppressLint("SuspiciousIndentation")
+    suspend fun searchBooksByTitle(query: String): Flow<List<Book>> {
+        return callbackFlow {
+            val listener = dbRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val books = snapshot.children.mapNotNull { snapshot ->
+                        val book = snapshot.getValue(Book::class.java)
+                        snapshot.key?.let { book?.copy() }
+                    }.filter { book ->
+                        book?.title?.contains(query, ignoreCase = true) == true
+                    }
+                    trySend(books).isSuccess
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    close(error.toException())
+                }
+            })
+            awaitClose { dbRef.removeEventListener(listener) }
+        }
+    }
 
 
 

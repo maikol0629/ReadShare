@@ -5,7 +5,9 @@ import android.app.Activity
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,17 +21,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -37,79 +39,132 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import coil.compose.rememberImagePainter
+import com.grupo10.readshare.R
 import com.grupo10.readshare.model.Book
 import com.grupo10.readshare.model.ChatViewModel
 import com.grupo10.readshare.model.User
 import com.grupo10.readshare.storage.AuthManager
-import com.grupo10.readshare.storage.ChatManager
 import com.grupo10.readshare.storage.ChatMessage
 import com.grupo10.readshare.storage.Conversation
 import com.grupo10.readshare.storage.StorageManager
-import java.text.SimpleDateFormat
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConversationsScreen(navController: NavController, viewModel: ChatViewModel) {
+fun ConversationsScreen(
+    navController: NavController,
+    viewModel: ChatViewModel,
+    authManager: AuthManager,
+    storageManager: StorageManager
+) {
     val chats by viewModel.chats.collectAsState(initial = emptyList())
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshUserChats()
+        delay(1000)
+    }
+
+    Log.i("chats", chats.toString())
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Chats") })
+            TopAppBar(colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = colorResource(id = R.color.background2)),
+                title = { Text("Chats") },
+                )
         },
-        content = {
-            LazyColumn {
-                items(chats) { chat ->
-                    ChatItem(chat, onClick = {
+        containerColor = colorResource(id = R.color.background2)
+    ){
+        LazyColumn (modifier = Modifier
+            .background(colorResource(id = R.color.background2))
+            .fillMaxSize(),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            userScrollEnabled = true){
+            items(chats) { chat ->
+                ChatItem(
+                    chat = chat,
+                    authManager = authManager,
+                    storageManager = storageManager,
+                    onClick = {
                         navController.navigate("chat/${chat.id}")
-                    })
-                }
+                    },
+                    onDelete = {
+                        viewModel.deleteChat(chat.id)
+                    }
+                )
             }
-        },
-        floatingActionButtonPosition = FabPosition.End,
-        floatingActionButton = {
-            FloatingActionButton(onClick = { /* Handle new chat creation here */ }) {
-                Icon(Icons.Default.Add, contentDescription = "New Chat")
-            }
-        }
-    )
-}
-
-@Composable
-fun ChatItem(chat: Conversation, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(16.dp)
-    ) {
-        Column {
-            Text(chat.lastMessage, style = MaterialTheme.typography.bodyLarge)
-            Text("Last updated: ${SimpleDateFormat.getInstance().format(chat.lastTimestamp.toDate())}", style = MaterialTheme.typography.bodySmall)
-            Text("Book ID: ${chat.bookId}", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
 
 @Composable
-fun ConversationItem(conversation: Conversation, onClick: () -> Unit) {
-    Row(modifier = Modifier
-        .fillMaxWidth()
-        .clickable(onClick = onClick)
-        .padding(16.dp)) {
-        Column {
-            Text(text = conversation.lastMessage, style = MaterialTheme.typography.bodyLarge)
-            Text(text = SimpleDateFormat.getInstance().format(conversation.lastTimestamp.toDate()), style = MaterialTheme.typography.bodySmall)
-            Text(text = "Book ID: ${conversation.bookId}", style = MaterialTheme.typography.bodySmall)
+fun ChatItem(
+    chat: Conversation,
+    authManager: AuthManager,
+    storageManager: StorageManager,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var user by remember { mutableStateOf(User()) }
+    var book by remember { mutableStateOf(Book()) }
+    var painter = painterResource(id = R.drawable.profile)
+
+    LaunchedEffect(chat) {
+        val otherUserId = chat.userIds.find { it != authManager.getUserUid() }
+        if (otherUserId != null) {
+            authManager.getUserDataByID(otherUserId)?.let { fetchedUser ->
+                user = fetchedUser
+            }
+        }
+        storageManager.getBookById(chat.bookId)?.let { fetchedBook ->
+            book = fetchedBook
+        }
+    }
+
+    if (user.image.isNotEmpty()) {
+        painter = rememberAsyncImagePainter(user.image)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(16.dp)
+            .background(colorResource(id = R.color.label)),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Image(
+            painter = painter,
+            contentDescription = "Profile Picture",
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(book.title, style = MaterialTheme.typography.bodyLarge)
+            Text(" ${chat.lastTimestamp} ${chat.lastMessage}", style = MaterialTheme.typography.bodySmall)
+        }
+        if (authManager.getUserUid() == book.user) {
+            IconButton(onClick = { onDelete() }) {
+                Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete Chat")
+            }
         }
     }
 }
@@ -117,37 +172,45 @@ fun ConversationItem(conversation: Conversation, onClick: () -> Unit) {
 @SuppressLint("CoroutineCreationDuringComposition")
 @Composable
 fun ChatScreen(chatId: String, viewModel: ChatViewModel, context: Context) {
-    val chatManager = ChatManager(context)
-    val storageManager = StorageManager(context)
     val authManager = AuthManager(context, context as Activity)
     val messages by viewModel.getChatMessages(chatId).collectAsState(initial = emptyList())
     var chat by remember { mutableStateOf<Conversation?>(null) }
-    var book by remember { mutableStateOf<Book?>(null) }
-    var user by remember { mutableStateOf<User?>(null) }
+    var currentUser by remember { mutableStateOf<User?>(null) }
+    var receiverUser by remember { mutableStateOf<User?>(null) }
     var messageText by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        val retrievedChat = chatManager.getConversationByChatId(chatId)
-        chat = retrievedChat
-        if (retrievedChat != null) {
-            Log.i("chat", chat.toString())
-            val retrievedBook = storageManager.getBookById(retrievedChat.bookId)
-            book = retrievedBook
-            if (retrievedBook != null) {
-                Log.i("book", book.toString())
-                user = authManager.getUserDataByID(retrievedBook.user)
-                Log.i("user", user.toString())
-                snapshotFlow { user }.collect{}            }
+        launch {
+            val fetchedChat = viewModel.getConversationByChatId(chatId)
+            chat = fetchedChat
+            val userIds = chat?.userIds as List<*>
+            userIds.forEach{id->
+                if (id.toString() == authManager.getUserUid()){
+                    currentUser = authManager.getUserDataByID(id.toString())
+                }else{
+                    receiverUser = authManager.getUserDataByID(id.toString())
+                }
+            }
         }
     }
-
-    Column {
-        if (user != null) {
-            ChatRow(userName = user!!.name, userProfileImageUrl = user!!.image)
+    Column(modifier = Modifier.background(colorResource(id = R.color.background2)
+        )) {
+        if (receiverUser != null) {
+            ChatRow(userName = receiverUser!!.name, userProfileImageUrl = receiverUser!!.image)
         }
-        LazyColumn(modifier = Modifier.weight(1f)) {
+        LazyColumn(modifier = Modifier
+            .weight(1f)
+            .background(colorResource(id = R.color.label))) {
             items(messages) { message ->
-                MessageItem(message)
+                val isCurrentUserMessage = message.senderId == authManager.getUserUid()
+                val arrangement = if (isCurrentUserMessage) {
+                    Arrangement.End
+                } else {
+                    Arrangement.Start
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = arrangement) {
+                    MessageItem(message)
+                }
             }
         }
         Row(modifier = Modifier.padding(8.dp)) {
@@ -157,14 +220,19 @@ fun ChatScreen(chatId: String, viewModel: ChatViewModel, context: Context) {
                 modifier = Modifier.weight(1f)
             )
             Button(onClick = {
-                viewModel.sendMessage(chatId, messageText)
-                messageText = ""
+                if (chat != null) {
+                    viewModel.sendMessage(chatId, messageText, receiverUser!!.id)
+                    messageText = ""
+                }
             }) {
                 Text("Send")
             }
         }
     }
 }
+
+
+
 
 @Composable
 fun ChatRow(userName: String, userProfileImageUrl: String) {
@@ -189,11 +257,12 @@ fun ChatRow(userName: String, userProfileImageUrl: String) {
     }
 }
 
+
 @Composable
 fun MessageItem(message: ChatMessage) {
     Column(modifier = Modifier.padding(8.dp)) {
-        Text(message.message, style = MaterialTheme.typography.titleSmall)
-        Text("Sent by: ${message.senderId}", style = MaterialTheme.typography.bodySmall)
+        Text(message.message, style = MaterialTheme.typography.bodyLarge, color = colorResource(id = R.color.white))
+        Text(" ${message.timestamp}", style = MaterialTheme.typography.labelSmall, color = colorResource(id = R.color.login))
     }
 }
 @Composable
@@ -212,6 +281,7 @@ fun NewChatScreen(bookId: String, bookUserId: String, viewModel: ChatViewModel, 
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .background(colorResource(id = R.color.background2))
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
@@ -254,4 +324,6 @@ fun NewChatScreen(bookId: String, bookUserId: String, viewModel: ChatViewModel, 
         }
     }
 }
+
+
 

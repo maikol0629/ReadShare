@@ -1,12 +1,12 @@
 package com.grupo10.readshare.storage
 
-import android.app.Activity
-import android.content.Context
-import com.google.firebase.Timestamp
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
+import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
 
 data class ChatMessage(
     val senderId: String = "",
@@ -19,73 +19,104 @@ data class Conversation(
     val id: String = "",
     val userIds: List<String?> = emptyList(),
     val lastMessage: String = "",
-    val lastTimestamp: Timestamp = Timestamp.now(),
+    val lastTimestamp: String = "",
     val bookId: String = ""
 )
 
-class ChatManager(ctx: Context) {
-    private val auth = AuthManager(ctx, ctx as Activity)
-    private val db = FirebaseFirestore.getInstance()
+class ChatManager() {
+    private val database: DatabaseReference = FirebaseDatabase.getInstance().reference.child("chats")
+    private val auth = FirebaseAuth.getInstance()
 
-    // Obtener lista de chats del usuario actual
     suspend fun getUserChats(userId: String): List<Conversation> {
-        return db.collection("chats")
-            .whereArrayContains("userIds", userId)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .get().await()
-            .toObjects(Conversation::class.java)
+        val chats = mutableListOf<Conversation>()
+        val snapshot = database.get().await()
+        Log.i("ChatManager", "Snapshot: $snapshot")
+        for (childSnapshot in snapshot.children) {
+            val chat = childSnapshot.getValue(Conversation::class.java)
+            chat?.let {
+                if (it.userIds.contains(userId)) {
+                    chats.add(it)
+                }
+            }
+        }
+        Log.i("ChatManager", "Chats: $chats")
+        return chats
     }
 
-    // Obtener mensajes de un chat
+
+
     suspend fun getChatMessages(chatId: String): List<ChatMessage> {
-        return db.collection("chats").document(chatId)
-            .collection("messages")
-            .orderBy("timestamp", Query.Direction.ASCENDING)
-            .get().await()
-            .toObjects(ChatMessage::class.java)
+        val messages = mutableListOf<ChatMessage>()
+        val snapshot = database.child(chatId).child("messages").orderByChild("timestamp").get().await()
+
+        for (childSnapshot in snapshot.children) {
+            val message = childSnapshot.getValue(ChatMessage::class.java)
+            message?.let {
+                messages.add(it)
+            }
+        }
+        return messages
     }
 
-    // Enviar un mensaje
     suspend fun sendMessage(chatId: String, message: ChatMessage) {
-        val messageRef = db.collection("chats").document(chatId).collection("messages").document()
-        messageRef.set(message).await()
+        val messageRef = database.child(chatId).child("messages").push()
+        messageRef.setValue(message).await()
 
         // Actualizar el último mensaje y timestamp en el documento del chat
-        db.collection("chats").document(chatId).update(
-            "lastMessage", message.message,
-            "timestamp", FieldValue.serverTimestamp()
+        val timestamp = SimpleDateFormat.getInstance().format(Date())
+        database.child(chatId).updateChildren(
+            mapOf(
+                "lastMessage" to message.message,
+                "lastTimestamp" to timestamp
+            )
         ).await()
     }
 
-    // Crear un nuevo chat a partir de un bookId y bookUserId
     suspend fun createChatFromBook(bookId: String, bookUserId: String, initialMessage: ChatMessage): String {
-        val currentUser = auth.getUserUid()
-        val chatRef = db.collection("chats").document()
+        val currentUser = auth.currentUser?.uid ?: ""
+        val chatId = database.push().key ?: ""
+
         val chat = Conversation(
-            id = chatRef.id,
+            id = chatId,
             userIds = listOf(currentUser, bookUserId),
             lastMessage = initialMessage.message,
-            lastTimestamp = Timestamp.now(),
+            lastTimestamp = SimpleDateFormat.getInstance().format(Date()),
             bookId = bookId
         )
-        chatRef.set(chat).await()
 
-        sendMessage(chatRef.id, initialMessage)
-        return chatRef.id
+        database.child(chatId).setValue(chat).await()
+        sendMessage(chatId, initialMessage)
+        return chatId
     }
 
-    // Obtener un chat existente entre dos usuarios y un libro específico
     suspend fun getExistingChat(bookId: String, userId: String, bookUserId: String): Conversation? {
-        val result = db.collection("chats")
-            .whereEqualTo("bookId", bookId)
-            .whereArrayContainsAny("userIds", listOf(userId, bookUserId))
-            .get()
-            .await()
+        val snapshot = database.orderByChild("bookId").equalTo(bookId).get().await()
 
-        return result.documents.firstOrNull()?.toObject(Conversation::class.java)
+        for (childSnapshot in snapshot.children) {
+            val chat = childSnapshot.getValue(Conversation::class.java)
+            if (chat != null && chat.userIds.contains(userId) && chat.userIds.contains(bookUserId)) {
+                return chat
+            }
+        }
+        return null
     }
+
     suspend fun getConversationByChatId(chatId: String): Conversation? {
-        val doc = db.collection("chats").document(chatId).get().await()
-        return doc.toObject(Conversation::class.java)
+        val snapshot = database.child(chatId).get().await()
+        return snapshot.getValue(Conversation::class.java)
     }
+
+    suspend fun deleteChat(chatId: String, userId: String) {
+        // Obtener los detalles del chat
+        val chatSnapshot = database.child(chatId).get().await()
+        val chat = chatSnapshot.getValue(Conversation::class.java)
+
+        // Verificar que el chat exista y que el usuario sea el propietario del libro
+        if (chat != null && chat.userIds.contains(userId)) {
+            database.child(chatId).removeValue().await()
+        } else {
+            throw IllegalArgumentException("No tienes permiso para eliminar este chat.")
+        }
+    }
+
 }

@@ -34,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,6 +55,7 @@ import coil.compose.rememberImagePainter
 import com.grupo10.readshare.R
 import com.grupo10.readshare.model.Book
 import com.grupo10.readshare.model.User
+import com.grupo10.readshare.navigation.AppScreens
 import com.grupo10.readshare.storage.AuthManager
 import com.grupo10.readshare.storage.StorageManager
 import kotlinx.coroutines.launch
@@ -82,25 +84,28 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
     }
 
     Scaffold(
+        containerColor = colorResource(id = R.color.background2),
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = colorResource(id = R.color.background2)),
                 title = { Text("User Profile") },
                 actions = {
                     IconButton(onClick = {
-                        // Lógica para cerrar sesión
-                        authManager.signOut()
-                        navController.navigate("login") {
-                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        authManager.signOut()  // Cerrar sesión
+                        navController.navigate(AppScreens.Login.route) {
+                            popUpTo(0) { inclusive = true }  // Elimina toda la pila de navegación
+                            launchSingleTop = true
                         }
-                    }) {
-                        Icon(imageVector = Icons.Default.ExitToApp, contentDescription = "Logout")
+                    }){
+                        Icon(imageVector = Icons.Default.ExitToApp, contentDescription = "Logout", tint = Color.Black)
                     }
                     IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete Account")
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete Account", tint = Color.Red)
                     }
                 }
             )
         },
+        contentColor = colorResource(id = R.color.background2),
         floatingActionButton = {
             if (flag) {
                 FloatingActionButton(onClick = {
@@ -122,7 +127,7 @@ fun Account(user: User, authManager: AuthManager, navController: NavController, 
             }
         },
         bottomBar = {
-            BottomAppBar() {
+            BottomAppBar( containerColor = colorResource(id = R.color.background2)) {
                 Button(onClick = { navController.navigate("conversations")}) {
                     Text("Chats")
                 }

@@ -1,7 +1,6 @@
 package com.grupo10.readshare.ui.theme.screens
 
 import android.annotation.SuppressLint
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,7 +40,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -64,7 +62,6 @@ fun Main(
 ) {
     var currentScreen by remember { mutableStateOf(BottomBarScreen.Home) }
     var bookMenuFlag by remember { mutableStateOf(false) }
-    val name by remember { mutableStateOf("") }
     var user by remember { mutableStateOf(User()) }
     LaunchedEffect(Unit) {
         launch {
@@ -80,7 +77,7 @@ fun Main(
                 onScreenSelected = { currentScreen = it }
             )
         },
-        containerColor = colorResource(id = R.color.login),
+        containerColor = colorResource(id = R.color.background2),
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             if (currentScreen == BottomBarScreen.Home || currentScreen == BottomBarScreen.Account) {
@@ -111,14 +108,16 @@ fun Main(
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier
+                .padding(innerPadding)
+                .background(colorResource(id = R.color.background2)),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             when (currentScreen) {
                 BottomBarScreen.Home -> HomeScreen(storage = storage, navController)
-                BottomBarScreen.Search -> SearchScreen()
-                BottomBarScreen.Menu -> MenuScreen()
+                BottomBarScreen.Search -> SearchScreen(storage, navController)
+                BottomBarScreen.Menu -> MenuScreen(storage, navController)
                 BottomBarScreen.Account ->  AccountScreen(user, authManager = auth, navController = navController, storage = storage)
             }
         }
@@ -130,7 +129,9 @@ fun BottomBar(currentScreen: BottomBarScreen, onScreenSelected: (BottomBarScreen
     Row(
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color = colorResource(id = R.color.login))
     ) {
         BottomBarIcon(
             screen = BottomBarScreen.Home,
@@ -194,7 +195,6 @@ fun HomeScreen(storage: StorageManager, navController: NavController) {
                 sale = it.filter { book -> book.price.isNotEmpty() }
                 exchange = it.filter { book -> book.price.isEmpty() }
                 all = it
-                Log.i("books", all.toString())
             }
         }
     }
@@ -209,13 +209,13 @@ fun HomeScreen(storage: StorageManager, navController: NavController) {
 }
 
 @Composable
-fun SearchScreen() {
-    Text("Search Screen", fontWeight = FontWeight.Bold, color = Color.Black)
+fun SearchScreen(storageManager: StorageManager,navController: NavController) {
+    BookSearchScreen(storageManager = storageManager, navController = navController)
 }
 
 @Composable
-fun MenuScreen() {
-    Text("Menu Screen", fontWeight = FontWeight.Bold, color = Color.Black)
+fun MenuScreen(storage: StorageManager,navController: NavController) {
+    BookCategoryScreen(storageManager = storage, navController = navController)
 }
 
 @Composable
@@ -257,7 +257,7 @@ fun Card(book: Book, navController: NavController) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = book.user,
+                    text = book.description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray
                 )
@@ -285,12 +285,12 @@ fun RowWithCards(books: List<Book>, title: String, navController: NavController)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(color = MaterialTheme.colorScheme.background)
+            .background(color = colorResource(id = R.color.background2))
             .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        Text(text = title, style = MaterialTheme.typography.titleLarge, color = colorResource(id = R.color.login))
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyRow(modifier = Modifier.fillMaxWidth()) {

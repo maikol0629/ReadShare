@@ -51,48 +51,55 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.navigation.runtime.ktx)
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.firebase.storage.ktx)
-    implementation(libs.androidx.compose.material)
-    implementation(libs.androidx.preference.ktx)
-    implementation(libs.firebase.appcheck.playintegrity)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
-    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
-    //noinspection UseTomlInstead
+    implementation (platform("androidx.compose:compose-bom:2024.05.00"))
+    // Actualiza a la última versión de Compose BOM
+
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.1")
+    implementation("androidx.activity:activity-compose:1.9.0")
+
+    // Compose dependencies
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.navigation:navigation-runtime-ktx:2.7.7")
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.compose.material:material")
+    implementation("androidx.preference:preference-ktx:1.2.1")
+
+    // Firebase dependencies
+    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     implementation("com.google.firebase:firebase-analytics")
-    //noinspection UseTomlInstead
     implementation("com.google.firebase:firebase-auth")
     implementation(libs.firebase.storage.ktx)
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    // Google Play Services dependencies
     implementation("com.google.android.gms:play-services-auth:21.2.0")
-    implementation("com.google.firebase:firebase-firestore:25.0.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation ("com.google.firebase:firebase-appcheck:18.0.0")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity:18.0.0")
+    implementation(libs.google.firebase.database.ktx)
+    // Additional dependencies
+    implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("org.osmdroid:osmdroid-android:6.1.14")
+    implementation("org.osmdroid:osmdroid-wms:6.1.10")
+    implementation("com.facebook.android:facebook-android-sdk:13.0.0")
+    implementation("com.facebook.android:facebook-login:13.0.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.1")
 
-    implementation ("com.google.firebase:firebase-database-ktx")
 
-    implementation ("io.coil-kt:coil-compose:1.4.0")
-    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation ("org.osmdroid:osmdroid-android:6.1.14")
-    implementation ("org.osmdroid:osmdroid-wms:6.1.10")
-    implementation ("com.google.android.gms:play-services-location:21.0.1")
-    //facebook implementation
-    implementation ("com.facebook.android:facebook-android-sdk:13.0.0")
-    implementation ("com.facebook.android:facebook-login:13.0.0")
-    //Reftrofit
-    implementation ("com.squareup.okhttp3:okhttp:4.11.0")
 
+
+    // Test dependencies
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.04.00"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

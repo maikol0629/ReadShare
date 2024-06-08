@@ -172,12 +172,12 @@ fun Sigin(navController: NavController,
                             Button(
                                 onClick = {
 
-                                    if (user.isNotBlank()){
+                                    if (UserisNotBlank(user)){
                                         if((user.pass.length>6)){
                                             if(user.pass == cPass) {
 
                                                 scope.launch {
-                                                    auth.sigInWithEmailAndPass(user,navController,current)
+                                                    auth.signInWithEmailAndPass(user,navController,current)
                                                     auth.getUserUid()?.let { endId(it) }
                                                 }
 
@@ -214,3 +214,6 @@ fun Sigin(navController: NavController,
         }
         }
     }
+fun UserisNotBlank(user: User): Boolean {
+    return user.name.isNotBlank() && user.email.isNotBlank() && user.pass.isNotBlank() && user.lastName.isNotBlank()
+}

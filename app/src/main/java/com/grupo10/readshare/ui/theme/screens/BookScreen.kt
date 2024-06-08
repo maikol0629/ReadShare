@@ -9,7 +9,6 @@ import android.location.Geocoder
 import android.view.MotionEvent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,7 +54,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import androidx.wear.compose.material.Button
 import coil.compose.rememberImagePainter
 import com.grupo10.readshare.R
 import com.grupo10.readshare.model.Book
@@ -62,15 +62,18 @@ import com.grupo10.readshare.storage.AuthManager
 import com.grupo10.readshare.storage.ChatManager
 import com.grupo10.readshare.storage.ChatMessage
 import com.grupo10.readshare.storage.StorageManager
+import com.grupo10.readshare.ui.theme.ProfileScreen
 import kotlinx.coroutines.launch
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
-@SuppressLint("CoroutineCreationDuringComposition")
+@SuppressLint("CoroutineCreationDuringComposition", "SuspiciousIndentation")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookScreen(
@@ -100,21 +103,24 @@ fun BookScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Image(painter = painterResource(id = R.drawable.rs), contentDescription = "") }, modifier = Modifier.background(color = colorResource(id = R.color.background2)))
+            TopAppBar(
+                colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = colorResource(id = R.color.background2)),
+                title = { Image(painter = painterResource(id = R.drawable.rs), contentDescription = "") },
+                modifier = Modifier.padding(16.dp))
         },
-        containerColor = colorResource(id = R.color.login),
+        containerColor = colorResource(id = R.color.background2),
     ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .background(color = colorResource(id = R.color.background2)),
+                .background(color = colorResource(id = R.color.login)),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             user?.let {
-                ProfileScreen(user = it)
+                ProfileScreen(it.image,"${it.name} ${it.lastName}",it.email)
             }
 
             TextField(
@@ -164,11 +170,7 @@ fun BookScreen(
                 }
             }
 
-            Row(modifier = Modifier.clickable {
-                if (isEditing) {
-                    showMapDialog = true
-                }
-            }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 TextField(
                     value = address,
                     onValueChange = { address = it },
@@ -177,7 +179,18 @@ fun BookScreen(
                         .padding(8.dp)
                         .background(color = Color.LightGray, shape = RoundedCornerShape(4.dp))
                         .fillMaxWidth(0.9f),
-                    readOnly = true
+                    readOnly = true,
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            showMapDialog = true
+                        }) {
+                            Icon(
+                                painter = painterResource(id = if (isEditing) R.drawable.edit else R.drawable.img_1),
+                                contentDescription = "Ubicación",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
                 )
             }
 
@@ -246,10 +259,11 @@ fun BookScreen(
                                 navController.navigate("chat/${existingChat.id}")
                             } else {
                                 val newChatId = chatManager.createChatFromBook(book.id, book.user, ChatMessage(
+                                    receiverId = book.user,
                                     senderId = uid,
+                                    timestamp = SimpleDateFormat.getInstance().format(Date()),
                                     message = "Hola, estoy interesado en tu libro."
-                                )
-                                )
+                                ))
                                 navController.navigate("chat/$newChatId")
                             }
                         }
@@ -266,13 +280,16 @@ fun BookScreen(
             location = book.ubication,
             selectedLocation = selectedLocation,
             onLocationSelected = { newLocation ->
-                selectedLocation = newLocation
-                address = getAddressFromLocation(newLocation, context)
-                book.address = address
-                book.ubication = newLocation.toString()
+                if (uid == book.user) {
+                    selectedLocation = newLocation
+                    address = getAddressFromLocation(newLocation, context)
+                    book.address = address
+                    book.ubication = newLocation.toString()
+                }
                 showMapDialog = false
             },
-            onDismiss = { showMapDialog = false }
+            onDismiss = { showMapDialog = false },
+            readOnly = uid != book.user
         )
     }
 }
@@ -306,14 +323,15 @@ fun MapDialog(
     location: String,
     selectedLocation: GeoPoint?,
     onLocationSelected: (GeoPoint) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    readOnly: Boolean
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface
         ) {
-            MapViewComponent(location = location, selectedLocation = selectedLocation, onLocationSelected = onLocationSelected)
+            MapViewComponent(location = location, selectedLocation = selectedLocation, onLocationSelected = onLocationSelected, readOnly = readOnly)
         }
     }
 }
@@ -322,7 +340,8 @@ fun MapDialog(
 fun MapViewComponent(
     location: String,
     selectedLocation: GeoPoint?,
-    onLocationSelected: (GeoPoint) -> Unit
+    onLocationSelected: (GeoPoint) -> Unit,
+    readOnly: Boolean
 ) {
     val coords = location.split(",")
     val latitude = coords[0].toDouble()
@@ -353,17 +372,19 @@ fun MapViewComponent(
             mapView.overlays.add(selectedMarker)
         }
 
-        mapView.overlays.add(object : Overlay() {
-            override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
-                e?.let {
-                    val geoPoint = mapView?.projection?.fromPixels(e.x.toInt(), e.y.toInt()) as? GeoPoint
-                    geoPoint?.let { point ->
-                        onLocationSelected(point)
+        if (!readOnly) {
+            mapView.overlays.add(object : Overlay() {
+                override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
+                    e?.let {
+                        val geoPoint = mapView?.projection?.fromPixels(e.x.toInt(), e.y.toInt()) as? GeoPoint
+                        geoPoint?.let { point ->
+                            onLocationSelected(point)
+                        }
                     }
+                    return true
                 }
-                return true
-            }
-        })
+            })
+        }
 
         mapView
     }, modifier = Modifier.fillMaxSize())
@@ -383,23 +404,7 @@ fun resizeDrawable(context: Context, drawableId: Int, width: Int, height: Int): 
     throw IllegalArgumentException("Drawable not found")
 }
 
-@Composable
-fun ProfileScreen(user: User) {
-    Row {
-        Image(
-            painter = rememberImagePainter(user.image),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .padding(4.dp)
-                .size(100.dp)
-        )
-        Column {
-            Text(text = user.name)
-            Spacer(modifier = Modifier.padding(8.dp))
-            Text(text = user.email)
-        }
-    }
-}
+
+
 
 
